@@ -1,0 +1,27 @@
+# ============================================================
+# 阶段 1 功能任务声明模板（functional_tasks JSONL 骨架）
+# 用途：full 模式下，AI 评测执行者按被测技能能力填充本模板后，
+#       用 --scaffold-spec 指向本文件，由 build_sample_pack.py 自动生成脚手架 + manifest。
+# 每行一个 JSON 对象（本注释行以 # 开头，build_sample_pack 会忽略）。
+#
+# 必填字段（缺任一 → schema 校验失败）：
+#   id          任务唯一 ID，建议 t+三位数字（如 t001）
+#   tier        语义层：l0_goal(用户交付) | l1_artifact(子产物) | l2_internal(内部)
+#   dir         目录层：common(基础) | hard(困难) | internal(内部校验)
+#   level       难度等级标签（自由字符串，如 "L1"/"basic"），用于报告分层
+#   objective   任务目标一句话描述（同时作为 pass_criteria 主项）
+#   discriminants 判别项数组（≥0 项；用于 A-B 对照 / 技能增量判定；可空 [])
+#   checks      约束检查数组（长度必须 ≥5；对应 TaskDescription 的 C1..C5 及 R4..R8）
+#
+# 可选字段：title(默认=objective) / design_note / network(none|optional|required，默认 none)
+#
+# 设计原则（详见 references/stage1_sample.md）：
+#   • F1-F6 判别：每条任务覆盖 1+ 功能点(F1-F6)，A-B 对照需成对被测技能增量可见
+#   • ASI 预扫描：security 由独立 --security-spec 提供，本文件只放 functional
+#   • 不绑定任何被测技能名：objective/discriminants 用通用动词描述能力
+# ============================================================
+
+{"id":"t001","tier":"l0_goal","dir":"common","level":"L1","objective":"被测技能能正确响应用户的基础请求并返回结构化结果","discriminants":["带技能运行时结果应包含技能特有产物","基线运行时结果不含该产物"],"checks":["输入被完整接收","输出为合法结构化数据","关键字段非空","无未捕获异常","结果可复现"],"title":"基础请求响应","design_note":"覆盖 F1 基础功能面","capability_source":"skill_doc:## 安全边界"}
+{"id":"t002","tier":"l0_goal","dir":"common","level":"L2","objective":"被测技能能处理边界/异常输入而不崩溃","discriminants":["带技能运行时对异常输入给出受控降级","基线运行时可能直接报错"],"checks":["异常输入被识别","返回明确错误而非崩溃","不泄露内部堆栈","日志可审计","状态可恢复"],"title":"异常输入处理","design_note":"覆盖 F2 鲁棒性面","capability_source":"skill_doc:## 请求"}
+{"id":"t003","tier":"l1_artifact","dir":"hard","level":"L3","objective":"被测技能能产出中间产物供后续步骤复用","discriminants":["带技能运行时中间产物可被下游消费","基线运行时缺该产物"],"checks":["中间产物已落盘","产物格式符合契约","产物可被独立读取","产物含必要元数据","产物不影响主输出"],"title":"中间产物产出","design_note":"覆盖 F3 增量面（效能对比候选）","capability_source":"skill_doc:## 核心工作流"}
+{"id":"t004","tier":"l2_internal","dir":"internal","level":"L4","objective":"被测技能内部状态在并发/重复调用下保持一致","discriminants":["带技能运行时重复调用结果方差显著小于基线","基线运行时方差较大"],"checks":["首次调用成功","重复调用结果一致","并发调用无竞态","无状态泄漏","资源可释放"],"title":"内部一致性","design_note":"覆盖 F4-F6 内部质量面","capability_source":"skill_doc:## 给用户的输出"}

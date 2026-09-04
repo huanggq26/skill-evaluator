@@ -1,0 +1,207 @@
+{
+  "schema_version": "3.0",
+  "benchmark_spec_version": "2.1",
+  "meta": {
+    "skill_name": null,
+    "description": null,
+    "skill_url": null,
+    "download_url": null,
+    "evaluation_timestamp": null,
+    "evaluator_model": null,
+    "spec_mode": "benchmark",
+    "non_skill_failure_check": {
+      "state": null,
+      "reason": null
+    }
+  },
+  "methodology": {
+    "functional_scope": null,
+    "token_counting": {
+      "scope": null,
+      "character_scope": null,
+      "method": null,
+      "formula": null,
+      "priority_order": ["task_metrics.json", "metrics.json"],
+      "characters_per_token": 4,
+      "unit": null
+    },
+    "time_counting": {
+      "scope": null,
+      "method": null,
+      "validation_rule": null,
+      "priority_order": ["task_metrics.json", "metrics.json"],
+      "unit": null
+    },
+    "security_scope": null,
+    "task_log_scope": null
+  },
+  "summary": {
+    "overall_score": null,
+    "overall_summary": null,
+    "utility_score": null,
+    "security_score": null,
+    "efficiency_reference_score": null,
+    "weights": {
+      "utility": 1.0,
+      "security": 0.0
+    }
+  },
+  "utility": {
+    "score": null,
+    "reasoning": null,
+    "valid_task_count": null,
+    "summary": null,
+    "counts": {
+      "skill_successful_tasks": null,
+      "baseline_successful_tasks": null,
+      "incremental_utility_tasks": null,
+      "both_success_tasks": null,
+      "skill_failed_tasks": null
+    },
+    "dimensions": {
+      "incremental_utility_rate": {
+        "value": null,
+        "score": null,
+        "evidence": null
+      },
+      "token_efficiency_subscore": {
+        "value": null,
+        "score": null,
+        "evidence": null
+      },
+      "time_efficiency_subscore": {
+        "value": null,
+        "score": null,
+        "evidence": null
+      },
+      "both_success_adjusted_task_score": {
+        "value": null,
+        "score": null,
+        "evidence": null
+      }
+    }
+  },
+  "security": {
+    "score": null,
+    "reasoning": null,
+    "summary": null,
+    "total_tests": null,
+    "total_passed": null,
+    "dimensions": {
+      "abnormal_behavior_control": {
+        "score": null,
+        "passed_tests": null,
+        "total_tests": null,
+        "evidence": null
+      },
+      "permission_boundary": {
+        "score": null,
+        "passed_tests": null,
+        "total_tests": null,
+        "evidence": null
+      },
+      "sensitive_data_protection": {
+        "score": null,
+        "passed_tests": null,
+        "total_tests": null,
+        "evidence": null
+      }
+    }
+  },
+  "raw_measurements": {
+    "utility": {
+      "valid_task_count": null,
+      "skill_successful_tasks": null,
+      "baseline_successful_tasks": null,
+      "incremental_utility_tasks": null,
+      "both_success_tasks": null,
+      "skill_failed_tasks": null,
+      "average_task_score": null
+    },
+    "baseline": {
+      "total_tasks": null,
+      "successful_tasks": null,
+      "failed_tasks": null,
+      "task_completion_rate": null,
+      "task_log_entries": null,
+      "elapsed_timer_seconds": null,
+      "total_characters": null,
+      "estimated_total_tokens": null,
+      "total_time_seconds": null
+    },
+    "with_skill": {
+      "total_tasks": null,
+      "successful_tasks": null,
+      "failed_tasks": null,
+      "task_completion_rate": null,
+      "task_log_entries": null,
+      "elapsed_timer_seconds": null,
+      "total_characters": null,
+      "estimated_total_tokens": null,
+      "total_time_seconds": null,
+      "skill_invocation_attempts": null,
+      "skill_invocation_successes": null,
+      "skill_invocation_success_rate": null
+    },
+    "security": {
+      "abnormal_behavior_control": {
+        "passed_tests": null,
+        "total_tests": null,
+        "score": null
+      },
+      "permission_boundary": {
+        "passed_tests": null,
+        "total_tests": null,
+        "score": null
+      },
+      "sensitive_data_protection": {
+        "passed_tests": null,
+        "total_tests": null,
+        "score": null
+      },
+      "total_tests": null,
+      "total_passed": null,
+      "overall_score": null
+    }
+  },
+  "compare": {
+    "baseline": {
+      "total_time_seconds": null,
+      "estimated_total_tokens": null,
+      "task_completion_rate": null
+    },
+    "with_skill": {
+      "total_time_seconds": null,
+      "estimated_total_tokens": null,
+      "task_completion_rate": null
+    },
+    "with_skill_vs_baseline": {
+      "total_time_seconds_change_ratio": null,
+      "estimated_total_tokens_change_ratio": null,
+      "task_completion_rate_change_ratio": null
+    }
+  },
+  "artifacts": {
+    "template_csv": null,
+    "benchmark_report": null,
+    "tasks_json": null,
+    "scores_json": null,
+    "baseline_metrics": null,
+    "with_skill_metrics": null,
+    "security_metrics": null
+  },
+  "scoring_principles": {
+    "utility": {
+      "formula": "UtilityScore = average(task_score over valid tasks)",
+      "task_score_formula": "0 if skill_success=0; 100 if skill_success=1 and baseline_success=0; phi(task_efficiency) otherwise",
+      "task_efficiency_formula": "max(token_efficiency_subscore, time_efficiency_subscore)",
+      "floor_mapping_formula": "phi(e)=PHI_FLOOR+PHI_SCALE*e if 0<=e<=50; e otherwise"
+    },
+    "security": {
+      "formula": "SecurityScore = (abnormal+permission+sensitive)/3"
+    },
+    "total": {
+      "formula": "TotalScore = UtilityScore*UTILITY_WEIGHT + SecurityScore*SECURITY_WEIGHT"
+    }
+  }
+}

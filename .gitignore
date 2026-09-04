@@ -1,0 +1,49 @@
+# skill-evaluator 排除项
+# 目的：排除「治理区」「运行时产物」与「机器相关残留」，
+#      避免把维护期文件、本机路径、编译缓存、系统元数据带进发布包（可移植性与洁净度）。
+
+# ── 治理区（仅维护期使用，禁止发布）─────────────────────────
+# 说明：含 AGENTS_RULES.md / TASKLOG.md / archive/ / backup/ / tmp/，
+#      约束本项目自身管理，不参与业务逻辑，对使用者零价值。
+#      整目录过滤，一条规则覆盖全部治理文件。
+.project/
+
+# ── 治理入口文件（仅维护期使用，禁止发布）───────────────────
+# 说明：AGENTS.md / CODEBUDDY.md / opencode.json 均为治理注入入口，
+#      指向 .project/ 治理内容；对使用者无价值，且会造成"指向不存在的文件"。
+AGENTS.md
+CODEBUDDY.md
+CODEBUDDY.local.md
+opencode.json
+
+# ── 机器 / 系统元数据（跨平台）─────────────────────────────
+# 注：.gitignore 不支持行尾注释（`#` 仅行首生效），注释须独立成行，
+#     否则整行被当作文件名匹配而使规则静默失效。
+# macOS Finder 元数据
+.DS_Store
+# Windows 缩略图缓存
+Thumbs.db
+# Windows 文件夹配置
+desktop.ini
+
+# ── Python 运行时缓存 ───────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.so
+.Python
+.venv/
+venv/
+
+# ── 评测产物（正常落在 RESULTS_ROOT=~/Downloads/skill-evaluator_results）──
+# 说明：产物默认不写技能目录；此为防止误配置时产物混入发布包的兜底排除。
+spec/
+quality/
+sample/
+exec/
+
+# ── 编辑器 / 临时文件 ───────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*~
+*.tmp

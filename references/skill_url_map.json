@@ -1,0 +1,154 @@
+{
+  "SkillSh": {
+    "agent-browser": [
+      "https://skills.sh/vercel-labs/agent-browser/agent-browser",
+      "https://github.com/vercel-labs/agent-browser"
+    ],
+    "baoyu-infographic": [
+      "https://skills.sh/jimliu/baoyu-skills/baoyu-infographic",
+      "https://github.com/jimliu/baoyu-skills"
+    ]
+  },
+  "ClawHub": {
+    "1password": [
+      "https://skills.sh/steipete/clawdis/1password",
+      "https://skills.sh/steipete/clawdis/1password"
+    ],
+    "agent-browser": [
+      "https://skills.sh/vercel-labs/agent-browser/agent-browser",
+      "https://github.com/vercel-labs/agent-browser"
+    ],
+    "android-adb": [
+      "https://developer.android.com/tools/adb",
+      "https://developer.android.com/tools/adb"
+    ],
+    "android-automation": [
+      "https://developer.android.com/tools/adb",
+      "https://developer.android.com/tools/adb"
+    ],
+    "auto-updater": [
+      "https://skills.sh/teylersf/openclaw-auto-updater/auto-updater",
+      "https://skills.sh/teylersf/openclaw-auto-updater/auto-updater"
+    ],
+    "bear-notes": [
+      "https://skills.sh/steipete/clawdis/bear-notes",
+      "https://skills.sh/steipete/clawdis/bear-notes"
+    ],
+    "bluesky": [
+      "https://github.com/jeffaf/bluesky-skill",
+      "https://github.com/jeffaf/bluesky-skill"
+    ],
+    "browse": [
+      "https://skills.sh/browserbase/skills/browser",
+      "https://skills.sh/browserbase/skills/browser"
+    ],
+    "browser": [
+      "https://skills.sh/browserbase/skills/browser",
+      "https://skills.sh/browserbase/skills/browser"
+    ],
+    "browser-use": [
+      "https://skills.sh/browser-use/browser-use/browser-use",
+      "https://skills.sh/browser-use/browser-use/browser-use"
+    ],
+    "clawddocs": [
+      "https://docs.clawd.bot",
+      "https://docs.clawd.bot"
+    ],
+    "exa": [
+      "https://docs.exa.ai",
+      "https://docs.exa.ai"
+    ],
+    "fast-browser-use": [
+      "https://github.com/rknoche6/fast-browser-use",
+      "https://github.com/rknoche6/fast-browser-use"
+    ],
+    "financial-analyst": [
+      "https://clawhub.com",
+      "https://clawhub.com"
+    ],
+    "gog": [
+      "https://skills.sh/steipete/clawdis/gog",
+      "https://skills.sh/steipete/clawdis/gog"
+    ],
+    "himalaya": [
+      "https://skills.sh/steipete/clawdis/himalaya",
+      "https://skills.sh/steipete/clawdis/himalaya"
+    ],
+    "humanizer-zh": [
+      "https://skills.sh/op7418/humanizer-zh/humanizer-zh",
+      "https://skills.sh/op7418/humanizer-zh/humanizer-zh"
+    ],
+    "jobber": [
+      "https://maton.ai",
+      "https://developer.getjobber.com/docs/"
+    ],
+    "lnbits": [
+      "https://lnbits.com",
+      "https://lnbits.com"
+    ],
+    "lnbits-with-qrcode": [
+      "https://lnbits.com",
+      "https://lnbits.com"
+    ],
+    "market-environment-analysis": [
+      "https://skills.sh/tradermonty/claude-trading-skills/market-environment-analysis",
+      "https://skills.sh/tradermonty/claude-trading-skills/market-environment-analysis"
+    ],
+    "mcp": [
+      "https://mcp.exa.ai/mcp",
+      "https://mcp.exa.ai/mcp"
+    ],
+    "mcp-skill": [
+      "https://mcp.exa.ai/mcp",
+      "https://mcp.exa.ai/mcp"
+    ],
+    "n8n": [
+      "https://skills.sh/vladm3105/aidoc-flow-framework/n8n",
+      "https://skills.sh/vladm3105/aidoc-flow-framework/n8n"
+    ],
+    "notion-api": [
+      "https://skills.sh/intellectronica/agent-skills/notion-api",
+      "https://skills.sh/intellectronica/agent-skills/notion-api"
+    ],
+    "openai-whisper-api": [
+      "https://skills.sh/steipete/clawdis/openai-whisper-api",
+      "https://skills.sh/steipete/clawdis/openai-whisper-api"
+    ],
+    "oracle": [
+      "https://skills.sh/steipete/clawdis/oracle",
+      "https://skills.sh/steipete/clawdis/oracle"
+    ],
+    "self-improving-agent": [
+      "https://skills.sh/charon-fan/agent-playbook/self-improving-agent",
+      "https://skills.sh/charon-fan/agent-playbook/self-improving-agent"
+    ],
+    "smart-model-switching": [
+      "https://clawhub.com",
+      "https://clawhub.com"
+    ],
+    "songsee": [
+      "https://skills.sh/steipete/clawdis/songsee",
+      "https://skills.sh/steipete/clawdis/songsee"
+    ],
+    "summarize": [
+      "https://skills.sh/steipete/clawdis/summarize",
+      "https://skills.sh/steipete/clawdis/summarize"
+    ],
+    "video-frames": [
+      "https://skills.sh/steipete/clawdis/video-frames",
+      "https://skills.sh/steipete/clawdis/video-frames"
+    ],
+    "weather": [
+      "https://skills.sh/steipete/clawdis/weather",
+      "https://skills.sh/steipete/clawdis/weather"
+    ],
+    "word-docx": [
+      "https://clawic.com/skills/word-docx",
+      "https://clawic.com/skills/word-docx"
+    ],
+    "youtube-watcher": [
+      "https://github.com/yt-dlp/yt-dlp",
+      "https://github.com/yt-dlp/yt-dlp"
+    ]
+  }
+}
