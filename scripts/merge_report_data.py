@@ -106,7 +106,12 @@ def merge(
                 "rows": [],
                 "text": ("_待 AI 语义归纳服务场景_（脚本不代为裁定）："
                          "依据层次为 ①frontmatter description → ②When to Use → ③过程中的服务声明，"
-                         "完整材料见 `quality/results/subjective.json` 的 `function_table.skip_reason`"),
+                         "完整材料见 `quality/results/subjective.json` 的 `function_table.skip_reason`。\n"
+                         "⚠️ **归纳纪律（防产出物混入）**：服务场景必须是"
+                         "「用户可触发并感知收益」的能力；**禁止**把产出物"
+                         "（JSON／文件／报告／评分）或过程构件（门禁／聚合／脚手架／流水线内部步骤）"
+                         "列为场景。自检口径：每条应能回答「**用户怎么用它**」，"
+                         "而非「它产出什么」。归纳后须跑 `scripts/validate_function_table.py` 校验。"),
                 "skipped": True,
                 "skip_reason": str(_ft_entry.get("skip_reason") or ""),
             }

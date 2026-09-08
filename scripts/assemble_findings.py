@@ -122,6 +122,36 @@ def collect_functional(inputs: List[str]) -> List[dict]:
             # 「评测侧未实测」，**不是被测技能编写缺陷**，单列为 functional_untested，
             # 不进「已确认问题」，避免把评测过程问题伪装成技能问题。
             untested, untested_reason, untested_capability = _is_untested(gf)
+            if untested:
+                # 合并为一条结论：同一原因的 R1..R10 逐条罗列对读者没有意义，
+                # 且会让「未验证」看起来像「10 项缺陷」。改为一条人话结论，
+                # 读者一眼看懂「没测成 + 为什么 + 要不要管」。
+                findings.append({
+                    "finding_id": f"{task_id}@{mode}#untested",
+                    "eval_type": "functional_untested",
+                    "task_id": task_id,
+                    "mode": mode,
+                    "asi_category": "",
+                    "security_group": "",
+                    "evidence_field": "grading_result",
+                    "rubric_id": "",
+                    "rule_severity": "info",
+                    "verified": False,
+                    "llm_reviewed": False,
+                    "content": (
+                        f"（未完成验证，不计为技能缺陷）{untested_reason}"
+                        f"；能力：{untested_capability or task_id}"
+                    ),
+                    "capability": untested_capability,
+                    "evidence_strings": [],
+                    "location": {
+                        "task_id": task_id,
+                        "mode": mode,
+                        "skill_source": "",
+                        "artifact": str(gf),
+                    },
+                })
+                continue
             for r in gr.get("results", []):
                 if r.get("passed", True):
                     continue
@@ -129,30 +159,6 @@ def collect_functional(inputs: List[str]) -> List[dict]:
                 if not rid:
                     continue
                 reason = r.get("reason", "")
-                if untested:
-                    findings.append({
-                        "finding_id": f"{task_id}@{mode}#{rid}#untested",
-                        "eval_type": "functional_untested",
-                        "task_id": task_id,
-                        "mode": mode,
-                        "asi_category": "",
-                        "security_group": "",
-                        "evidence_field": "grading_result",
-                        "rubric_id": rid,
-                        "rule_severity": "info",
-                        "verified": False,
-                        "llm_reviewed": False,
-                        "content": f"（未实测，不计为技能缺陷）{rid} 未通过：{reason}；原因：{untested_reason}",
-                        "capability": untested_capability,
-                        "evidence_strings": [],
-                        "location": {
-                            "task_id": task_id,
-                            "mode": mode,
-                            "skill_source": "",
-                            "artifact": str(gf),
-                        },
-                    })
-                    continue
                 findings.append({
                     "finding_id": f"{task_id}@{mode}#{rid}",
                     "eval_type": "functional",
@@ -198,6 +204,19 @@ def _is_untested(grading_path: Path) -> tuple[bool, str, str]:
         return False, "", ""
     objective = str(res.get("objective", "") or "")
     status = str(res.get("status", "")).lower()
+
+    # 「调用成功但未取到数据」：接口正常，只是数据源返回 0 条（或取值偏窄）。
+    # 此时该能力**实际未被验证**——评测侧无法据此判定技能是否具备该能力，
+    # 属「未完成验证」，不得伪装成技能缺陷：
+    # 否则报告会把「查根因」的工作转嫁给读者，而读者看不到内部数据、做不到。
+    items = res.get("items")
+    if status == "success" and isinstance(items, list) and len(items) == 0:
+        return True, (
+            "接口调用成功，但数据源返回 0 条，本次未能验证该能力"
+            "（调用本身正常，无数据属数据源侧；"
+            "若同期其他数据源有内容，建议技能在此时回退其他来源）"
+        ), objective
+
     if status not in ("unsupported", "blocked", "failed"):
         return False, "", objective
     blob = " ".join([

@@ -2120,7 +2120,9 @@ def _build_benchmark_report(
     )
     _conclusion_outline = [
         f"- 安全评分：`{_sec_text}`（异常行为 / 权限边界 / 敏感数据 三项维度）",
-        f"- 增量覆盖：`reach={_score_text(_reach_rate)}（{_reach_abs} 个）`",
+        f"- 增量覆盖：`reach={_score_text(_reach_rate)}（{_reach_abs} 个）`"
+        + ("（⚠️ 若功能维度本次不适用——即全部功能任务均未实测——"
+           "则 `reach=0` 不代表技能缺乏能力，详见 §4）" if not _reach_abs else ""),
         f"- 效能增值（执行时间）："
         f"{('`'+_ratio_text(_eff_gain_display)+'`' if _comp_count > 0 else '效能测试无样本（无 baseline 可比任务，不进入效能倍率轴）')}"
         f"（耗时倍率 `{_mult_time_text if _comp_count > 0 else '无样本'}`）；"
@@ -2434,6 +2436,18 @@ def _build_benchmark_report(
            f"{'、'.join(_untested_tasks)}）" if _n_untested else "")
         + "。"
     )
+    # 功能维度整体不适用：全部功能任务均未实测时，明确告知 reach=0 不表示技能缺乏能力。
+    # 否则读者会把「评测侧无验证入口」误读为「被测技能没有增量价值」，
+    # 与 ERR-017「机器只陈述事实、不越权判断」同一原则。
+    _na_note = ""
+    if functional_tasks and _n_untested == len(functional_tasks):
+        _na_note = (
+            "\n> ⚠️ **功能维度本次不适用**：全部 "
+            f"{len(functional_tasks)} 项功能任务均未完成验证"
+            "（评测侧无可执行入口，非技能缺陷）。"
+            "因此 `reach=0` **不代表该技能缺乏能力**，仅表示本轮未取得功能维度的有效证据；"
+            "该维度不应作为负面结论依据。\n"
+        )
     # 样本设计缺陷段：与 E27 / build_sample_pack 同源判断，违规任务不混入用户功能能力表
     if _defect_lines:
         _defect_block = (
@@ -2546,7 +2560,7 @@ def _build_benchmark_report(
 ## 4. 被测技能功能能力
 
 > 本节约罗列被测技能**用户真实可感知的功能能力**（而非评测流程的中间产物）：每一项对应一个用户可调用、可验证的技能能力，标明它在「仅加载技能」与「裸 Agent（屏蔽技能内部知识）」下是否可达。
-
+{_na_note}
 | 用户关注的功能 | with_skill 成功 | baseline 成功 | 任务评分 | 评分路径 |
 | --- | --- | --- | --- | --- |
 {chr(10).join(task_rows)}

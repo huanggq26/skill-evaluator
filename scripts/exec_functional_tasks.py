@@ -190,23 +190,78 @@ def _resolve_placeholders(endpoint: str, skill_doc: str) -> tuple[str, list[str]
     endpoint = _PLACEHOLDER_RE.sub(_enum_sub, endpoint)
 
     # 2) 具名占位：<slug> / <关键词> → 在被测技能文档中找同名参数的实际取值
+    endpoint_tmpl = endpoint  # 供「按参数名回退」定位 `param=<placeholder>`
+
     def _named_sub(m):
         name = m.group(1).strip()
-        # 在文档中搜索该占位名（或其英文等价）作为参数出现的具体取值
-        pat = re.compile(rf"\b{re.escape(name)}\b\s*[=:：]\s*([A-Za-z0-9_\-\u4e00-\u9fff]{{1,40}})")
-        hit = pat.search(skill_doc)
-        if hit:
-            return hit.group(1)
-        # 退而求其次：文档中出现过 `<name>` 形如 `<name>=值` 或 name 附近有引号值
-        pat2 = re.compile(rf"{re.escape(name)}\s*[=:：]\s*[\"'`]?([A-Za-z0-9_\-]{{1,40}})[\"'`]?")
-        hit2 = pat2.search(skill_doc)
-        if hit2:
-            return hit2.group(1)
+        # 候选查找键（权威度递减）：
+        #   ① 占位符名本身（如 <slug>）
+        #   ② 该占位符所属的参数名（如 category=<slug> → category）——**关键回退**
+        # ② 不可省略：被测技能文档普遍按「参数名=示例值」记录，
+        #    而占位符名只是类型描述（slug 是"分类标识"的意思，并非真实参数名），
+        #    只按 ① 查找会永远落空，进而被误判为「文档未给出参数取值」。
+        keys = [name]
+        pm = re.search(r"[?&]([A-Za-z_][A-Za-z0-9_]*)=<" + re.escape(name) + r">",
+                       endpoint_tmpl)
+        if pm:
+            keys.append(pm.group(1))
+        for k in keys:
+            # 在文档中搜索该键作为参数出现的具体取值
+            pat = re.compile(rf"\b{re.escape(k)}\b\s*[=:：]\s*([A-Za-z0-9_\-\u4e00-\u9fff]{{1,40}})")
+            hit = pat.search(skill_doc)
+            if hit:
+                return hit.group(1)
+            # 退而求其次：键附近有引号包裹的值
+            pat2 = re.compile(rf"{re.escape(k)}\s*[=:：]\s*[\"'`]?([A-Za-z0-9_\-]{{1,40}})[\"'`]?")
+            hit2 = pat2.search(skill_doc)
+            if hit2:
+                return hit2.group(1)
         unresolved.append(name)
         return m.group(0)
 
     endpoint = _NAMED_RE.sub(_named_sub, endpoint)
     return endpoint, unresolved
+
+
+def _enum_values(ep_tmpl: str) -> list[str]:
+    """提取 endpoint 模板中「枚举占位」的取值列表（须在占位符解析**前**调用）。
+
+    仅处理「恰好一个枚举占位」的情形——多个枚举占位会产生组合爆炸，
+    且无法判断哪个组合才是"有数据的"，此时返回空（不做回退）。
+    """
+    ms = list(_PLACEHOLDER_RE.finditer(ep_tmpl))
+    if len(ms) != 1:
+        return []
+    return [v.strip() for v in ms[0].group(0)[1:-1].split("|")]
+
+
+def _enum_variants(resolved_ep: str, values: list[str], current: str) -> list[str]:
+    """在**已解析**的 endpoint 上，把当前枚举值替换为其他候选值。
+
+    背景：`_resolve_placeholders` 对枚举占位 `<24h|7d>` 按约定取**首项**，
+    但首项未必有数据（实测 `window=24h` 返回 0 条，而 `window=7d` 返回 7 条），
+    仅因取首项就判"无数据"，会把评测侧的取值策略问题误记为被测技能缺陷
+    （见错误档案 ERR-015）。故保留其余候选供空结果时回退。
+
+    ⚠️ 必须基于**已解析**的 endpoint 生成候选：
+    若基于含占位的原始模板，候选会残留 `<slug>` 等未解析占位符，
+    拼出的 URL 反而不可用（此为实现期实测到的缺陷）。
+
+    通用性：不内置任何技能专属取值，候选完全来自被测技能文档声明的枚举。
+    """
+    out: list[str] = []
+    if not values or not current:
+        return out
+    for v in values:
+        if v == current:
+            continue
+        # 仅替换「参数值位置」的当前值，避免误伤 URL 其他部分
+        for sep in ("=", "/"):
+            pat = f"{sep}{current}"
+            if pat in resolved_ep:
+                out.append(resolved_ep.replace(pat, f"{sep}{v}", 1))
+                break
+    return out
 
 
 def _resolve_bare_placeholders(endpoint: str, skill_doc: str) -> tuple[str, list[str]]:
@@ -341,11 +396,17 @@ def exec_one(task_id: str, task_dir: Path, mode: str, skill_name: str,
     notes: list[str] = []
     evidence: list[str] = []
     # 真实执行：用「被测技能文档 + 前序调用」解析占位符（通用机制，不内置任何技能专属取值）
+    enum_fallback: list[str] = []
     if endpoint:
+        # 枚举取值须在占位符解析「前」提取（解析后占位符已被替换为具体值）
+        enum_vals = _enum_values(endpoint)
         endpoint, unresolved_named = _resolve_placeholders(endpoint, skill_doc)
         endpoint, unresolved_bare = _resolve_bare_placeholders(endpoint, skill_doc)
         endpoint, unresolved_path = _chain_lookup(endpoint, base_url, skill_doc)
         unresolved = unresolved_named + unresolved_bare + unresolved_path
+        # 占位全部解析成功时，预计算枚举回退候选（首项无数据时改用其他合法取值）
+        if not unresolved and enum_vals:
+            enum_fallback = _enum_variants(endpoint, enum_vals, enum_vals[0])
         if unresolved:
             # 文档中未给出这些参数的取值、也无法从前序调用获得 →
             # 这是「被测技能文档未声明该能力的调用方式」，属**技能文档缺陷的真实信号**，
@@ -426,6 +487,27 @@ def exec_one(task_id: str, task_dir: Path, mode: str, skill_name: str,
                 try:
                     data = json.loads(body)
                     items = data if isinstance(data, list) else data.get("items", data.get("data", [data]))
+                    # 空结果回退：枚举占位只取了首项，而首项未必有数据。
+                    # 改用同枚举的其他合法取值重试，避免把「评测侧取值偏窄」
+                    # 误记为被测技能缺陷（见错误档案 ERR-015）。
+                    if (not items) and enum_fallback:
+                        for cand in enum_fallback:
+                            c2, b2 = _call_api(cand)
+                            if c2 != 200:
+                                continue
+                            try:
+                                d2 = json.loads(b2)
+                            except json.JSONDecodeError:
+                                continue
+                            it2 = (d2 if isinstance(d2, list)
+                                   else d2.get("items", d2.get("data", [d2])))
+                            if it2:
+                                notes.append(
+                                    "枚举取值回退：首项取值返回空，改用同枚举的其他合法取值"
+                                    f" → {cand}"
+                                )
+                                endpoint, body, items, code = cand, b2, it2, c2
+                                break
                     result_payload = {
                         "status": "success",
                         "objective": objective,
@@ -490,9 +572,22 @@ def main() -> int:
     # 脚本不内置任何技能专属取值表，保证通用性）。
     skill_doc = ""
     if args.skill_dir:
-        for cand in (args.skill_dir / "SKILL.md",):
-            if cand.is_file():
-                skill_doc = cand.read_text(encoding="utf-8", errors="replace")
+        # 占位符的取值示例常声明在子文档（如 references/*.md），
+        # 仅读 SKILL.md 会漏掉这些材料，导致占位符无法解析。
+        # 顺序固定：SKILL.md 优先，其后按路径排序追加（保证结果可复现）；
+        # 不绑定任何具体技能的目录结构（通用性硬约束）。
+        parts = []
+        main_doc = args.skill_dir / "SKILL.md"
+        if main_doc.is_file():
+            parts.append(main_doc.read_text(encoding="utf-8", errors="replace"))
+        ref_dir = args.skill_dir / "references"
+        if ref_dir.is_dir():
+            for p in sorted(ref_dir.rglob("*.md")):
+                try:
+                    parts.append(p.read_text(encoding="utf-8", errors="replace"))
+                except OSError:
+                    continue
+        skill_doc = "\n".join(parts)
         if not skill_doc:
             print("[exec] 警告：未在被测技能目录找到 SKILL.md，占位符解析将受限", file=sys.stderr)
 
