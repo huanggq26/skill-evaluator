@@ -6,7 +6,11 @@
 # 说明：含 AGENTS_RULES.md / TASKLOG.md / archive/ / backup/ / tmp/，
 #      约束本项目自身管理，不参与业务逻辑，对使用者零价值。
 #      整目录过滤，一条规则覆盖全部治理文件。
-.project/
+#      例外：错误档案区为长期资产（md 权威源，无法重建），须版本化。
+#      注：父目录整目录排除时子目录负向规则不生效，故用 .project/* 而非 .project/
+.project/*
+!.project/error_registry/
+.project/error_registry/errindex.db
 
 # ── 治理入口文件（仅维护期使用，禁止发布）───────────────────
 # 说明：AGENTS.md / CODEBUDDY.md / opencode.json 均为治理注入入口，
