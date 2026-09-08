@@ -4,7 +4,7 @@
 
 本文档定义 Stage 2-3（ExecAgent baseline / withskill）的执行合约与证据规范。
 
-输出目录结构：→ 见本文 [§0 完整输出目录树（权威定义）](#0-完整输出目录树权威定义)（唯一权威结构来源）。  
+输出目录结构：→ 见本文「0. 完整输出目录树（权威定义）」（唯一权威结构来源）。  
 路径定义：→ 见 `references/config.md`（唯一权威来源）。  
 
 ---
@@ -61,7 +61,7 @@
 
 ### 规范任务产物包
 
-每个功能任务的产物包结构（含 `results/`、`task_metrics.json`、`worklog.log`、`start_timestamp.json`、`end_timestamp.json`）以本文 [§0 完整输出目录树（权威定义）](#0-完整输出目录树权威定义) 为唯一权威来源，此处不再重复定义。
+每个功能任务的产物包结构（含 `results/`、`task_metrics.json`、`worklog.log`、`start_timestamp.json`、`end_timestamp.json`）以本文「0. 完整输出目录树（权威定义）」为唯一权威来源，此处不再重复定义。
 
 ## 3. 安全探测隔离
 

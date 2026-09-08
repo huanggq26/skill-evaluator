@@ -56,7 +56,7 @@
 
 > 任务 ID 编号规则定义见 `references/stage1_config.md`。
 
-每个 case 目录的**完整内部结构**（含 `TaskDescription.md` / `WorkSpace/` / `Grader/` 及其内部的 `grader_manifest.json` / `run.py` / `R1.py`~`R10.py`）以本文 [§1 样本产物包](#1-样本产物包) 的目录树为唯一权威来源，此处不再重复定义。
+每个 case 目录的**完整内部结构**（含 `TaskDescription.md` / `WorkSpace/` / `Grader/` 及其内部的 `grader_manifest.json` / `run.py` / `R1.py`~`R10.py`）以本文「1. 样本产物包」的目录树为唯一权威来源，此处不再重复定义。
 
 ## 4. TaskDescription.md 结构
 

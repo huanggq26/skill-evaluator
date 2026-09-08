@@ -356,9 +356,9 @@
 
 ## 结果验证
 
-- 对照 [benchmark_manifest.spec.md](specs/benchmark_manifest.spec.md) 验证清单结构
-- 对照 [task_description.spec.md](specs/task_description.spec.md) 验证每个任务描述
-- 对照 [grader.spec.md](specs/grader.spec.md) 验证每个评分器目录
+- 对照 `benchmark_manifest.spec.md#顶层结构` 验证清单结构
+- 对照 `task_description.spec.md` 验证每个任务描述
+- 对照 `grader.spec.md` 验证每个评分器目录
 - 运行步骤 7 的全部本地验证
 
 ## 相关文件

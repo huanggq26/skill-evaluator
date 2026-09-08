@@ -4,7 +4,7 @@
 
 本文档定义 Stage 4（SpecAgent）的评估合约、评分公式与输出规范。
 
-输出目录结构：→ 见本文 [§0 完整输出目录树（权威定义）](#0-完整输出目录树权威定义)（唯一权威结构来源）。  
+输出目录结构：→ 见本文「0. 完整输出目录树（权威定义）」（唯一权威结构来源）。  
 路径定义：→ 见 `references/config.md` + `references/stage4_config.md`。  
 ExecAgent 证据合约：→ 见 `references/exec_contract.md`。
 
@@ -41,7 +41,7 @@ ExecAgent 证据合约：→ 见 `references/exec_contract.md`。
 
 ## 1. SpecAgent 链
 
-> 完整输出目录树见 [§0 完整输出目录树（权威定义）](#0-完整输出目录树权威定义)；本节约述生成顺序。
+> 完整输出目录树见「0. 完整输出目录树（权威定义）」；本节约述生成顺序。
 
 ExecAgent 完成后，SpecAgent 按以下顺序执行：
 

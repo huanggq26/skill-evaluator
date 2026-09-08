@@ -325,7 +325,7 @@ python3 scripts/generate_outputs.py --spec-dir {SPEC_DIR} --sample-dir {SAMPLES_
 
 #### 步骤 7.5：生成问题报告（problem_report.md）
 
-> 本步产出用户级**改进报告**（问题清单视角，编译器式定位），与门禁报告 `benchmark_report.md` 同源互补（单源 + 双渲染 + ID 关联，→ 见 `整合方案.md` §8.6）。
+> 本步产出用户级**改进报告**（问题清单视角，编译器式定位），与门禁报告 `benchmark_report.md` 同源互补（单源 + 双渲染 + ID 关联）。
 
 聚合 SafeTest 已核实 findings + 功能任务 Grader 失败项 + QE 质量评估：
 

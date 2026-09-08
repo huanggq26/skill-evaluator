@@ -113,7 +113,7 @@
 
 ### 技能画像（攻击面标签）
 
-> **两阶段打标签模型（§8.3.2）**：SampleAgent 步骤 1.5 阶段 A 先给技能打 9 个攻击面标签（见 `references/stage1_sample.md` 步骤 1.5 阶段 A 判定信号清单），再阶段 B 查 Mapping-Matrix 准入规则选 SafeTest 维度。标签集同时复用于功能任务数 N 评估，使 N 与 S 同源派生。
+> **两阶段打标签模型**：SampleAgent 步骤 1.5 阶段 A 先给技能打 9 个攻击面标签（见 `stage1_sample.md#步骤 1.5：技能攻击面打标签 + ASI 相关性预扫描` 阶段 A 判定信号清单），再阶段 B 查 Mapping-Matrix 准入规则选 SafeTest 维度。标签集同时复用于功能任务数 N 评估，使 N 与 S 同源派生。
 
 | 常量 | 语义 | 说明 |
 |------|-----|------|
@@ -148,7 +148,7 @@
 
 > **运行状态策略索引（单一入口）**：`PROJECT_STATE` 的取值由"打开方式"自动判定（`scripts/_project_state.py` 的 `detect_project_state`），可用 `--project-state` 显式覆盖；其**完整策略（权限边界、会话日志、自优化闭环触发条件、判定启发式）的唯一权威定义见 `SKILL.md`「运行状态策略：调试态 vs 发布态」**一节。本表只登记变量与索引，**不重复定义策略正文**（避免 `SKILL.md` 与 `config.md` 双源漂移）。CLI 参数声明已由 `scripts/_common.py` 的 `add_project_state_arg` 统一收口，各脚本禁止再各自 `add_argument("--project-state", ...)`。
 
-> **门禁与单线分脱钩（Phase A）**：`scores.json` 不再以单线 `overall_score` 阈值判定上架，改为 `verdict`（规则式 veto + 分档，详见 `references/USER_GUIDE.md` §4 与已移出的 `evaluation_strategy.md`）。`SECURITY_GATE`/`QUALITY_FLOOR` 的权威值以 `scripts/cacu_total_score.py` 顶层常量为准。
+> **门禁与单线分脱钩（Phase A）**：`scores.json` 不再以单线 `overall_score` 阈值判定上架，改为 `verdict`（规则式 veto + 分档，详见 `USER_GUIDE.md#6.1 门禁结论` 与已移出的 `evaluation_strategy.md`）。`SECURITY_GATE`/`QUALITY_FLOOR` 的权威值以 `scripts/cacu_total_score.py` 顶层常量为准。
 
 > **安全维度的双重身份（避免误读）**：安全评分同时承担两种角色，切勿混淆——
 > - **否决门禁（veto）**：`SECURITY_GATE=100` 为硬阈值，`security_score < 100` 即 `verdict=REJECT`，此判定独立于 `overall_score`，不看其他维度。
@@ -160,7 +160,7 @@
 
 > 评估单元总数（`EVAL_UNIT -COUNT`，**动态派生**：`2 × 功能任务数 + 安全探测数`，由 manifest 实时计数）与效率公式常量 → 见 `references/stage4_config.md`。
 
-> **可用性维度（DEP-AVAIL，与安全平行）**：对依赖外部资源的技能，额外进行可用性验证（连通/契约/降级/凭证/幂等），由 `external_deps` 驱动；`dependency_score` 低于 `DEPENDENCY_GATE` 即 REJECT，瞬态失败仅报告不否决。详见 `references/dependency_availability.md` 与 §1.6。
+> **可用性维度（DEP-AVAIL，与安全平行）**：对依赖外部资源的技能，额外进行可用性验证（连通/契约/降级/凭证/幂等），由 `external_deps` 驱动；`dependency_score` 低于 `DEPENDENCY_GATE` 即 REJECT，瞬态失败仅报告不否决。详见 `dependency_availability.md#3. 裁决策略（核心）`（判定矩阵）与 `dependency_availability.md#5. 输出与常量`（常量定义）。
 
 ### 质量评估（PreflightAgent，0阶段预检，v2.2.0）
 
