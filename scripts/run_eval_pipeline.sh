@@ -482,6 +482,16 @@ run_stage4() {
   echo "   • benchmark_report.md / problem_report.md（最后阶段报告）"
   echo "   • scores.json（机器可读）"
   echo "=================================================="
+  # ── AI 评测执行者完成清单（ERR-014 复现实证教训：管线跑通 ≠ 评测完成）──
+  # 此门禁存在的理由（ERR-009「约束已写但未激活」）：完成定义若只存在档案/记忆里，
+  # 会随执行者上下文漂移而丢失；固化在 runner 尾部输出，每次交付前强制照单自查。
+  echo ""
+  echo "📋 AI 评测执行者完成清单（交付前逐项自查，全部通过才算评测完成）："
+  echo "   1. 主观维度裁定：PENDING_AI_ADJUDICATION.md 各维度经 AI 裁定写入 subjective.json，重跑 merge+render"
+  echo "   2. 功能表校验：python3 scripts/validate_function_table.py --report '$QUALITY_REPORT' --skill-dir '$TARGET_SKILL' 通过"
+  echo "   3. 交叉对应：质量报告功能表 ↔ benchmark §4 条目应可对应（可测子集关系），口径差异须在报告中有说明"
+  echo "   4. 产物新鲜：两份报告时间戳均为本轮（防旧产物当新结果，ERR-001）"
+  echo "   —— 缺任何一项即未完成，不得向用户交付"
 }
 
 # ============================================================
