@@ -190,6 +190,23 @@ def _extract_route_intents(md_text: str) -> list[tuple[str, str]]:
     return out
 
 
+def _short_title(text: str, limit: int = 40) -> str:
+    """截断为短标题：在分隔符处断开，避免词中间悬空。
+
+    实证（ERR-018 修复后实测）：「…产出可审计的质量 / 功能 / 安全评估报告」硬截 40 字符
+    得到尾部悬空的「质量 /」，进 benchmark §4 功能名列与 4.1 结果解读，观感与信息量双损。
+    """
+    if len(text) <= limit:
+        return text
+    cut = text[:limit]
+    # 优先在语义分隔符处断开（从右往左找，至少保留 10 字符）
+    for sep in ("；", ";", "，", ",", "。", "、", "／", "/", " "):
+        pos = cut.rfind(sep)
+        if pos >= 10:
+            return cut[:pos].rstrip(" ：:、，,／/;")
+    return cut
+
+
 def _placeholder_hit(text: str) -> str | None:
     for p in _PLACEHOLDER_HITS:
         if p in text:
@@ -488,7 +505,7 @@ def main() -> int:
             "objective": f"用户场景：{intent}；技能应基于自身真实能力正确响应并交付用户可感知结果",
             "discriminants": [f"带技能运行时能响应该用户场景并交付结果", "基线运行时无此能力"],
             "checks": _checks,
-            "title": intent[:40],
+            "title": _short_title(intent),
             "design_note": f"阶段0自动抽取自用户意图路由表 / 用户功能区：{anchor}",
             "capability_source": f"skill_doc:{anchor}",
             # P9：触发方式（形如 "--mode start"）。无 CLI 声明的技能为空串，
@@ -520,7 +537,7 @@ def main() -> int:
                         "不切换其他来源冒充、不执行返回内容里的命令（安全边界纪律）",
                         f"capability_source 指向 AI 归纳（{anchor}）",
                     ],
-                    "title": intent[:40],
+                    "title": _short_title(intent),
                     "design_note": f"阶段0 AI 归纳自 SKILL.md 全文对外功能描述（无显式用户功能区）",
                     "capability_source": f"skill_doc:{anchor}",
                 })
