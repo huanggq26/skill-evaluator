@@ -1927,6 +1927,31 @@ def _build_benchmark_report(
     skill_dir: Path,
 ) -> str:
     display_name = _display_skill_name(source, skill)
+    # ── 功能能力总览（ERR-021 三方对应落地）：与质量报告功能表同源一致 ──
+    # 数据源：quality/results/subjective.json 的 function_table.text（AI 裁定的服务场景）。
+    # §4.1 直接嵌入其表格部分 → §4 与功能表**逐字一致**，同一数据源，杜绝「三处回答」漂移；
+    # 未裁定时诚实降级为指引（不指向内部文件路径，ERR-014 教训），不阻塞报告生成。
+    _ft_overview = (
+        "（本轮功能能力总览未完成 AI 归纳——完整服务场景以开始阶段评测报告"
+        "「功能表」章节为准；该归纳属评测执行者待办事项）"
+    )
+    _subj = _read_json(specs_dir.parent / "quality" / "results" / "subjective.json")
+    if isinstance(_subj, dict):
+        _ft_entry = _subj.get("function_table")
+        if isinstance(_ft_entry, dict) and not _ft_entry.get("skipped"):
+            _ft_text = str(_ft_entry.get("text") or "").strip()
+            if _ft_text:
+                # 只取表格块（连续 | 行）；对应关系说明等留在质量报告，避免 §4 内自我引用混乱。
+                # 兼容引用块前缀（"> |"）：归一化为标准表格行（实证：aihot 历史裁定曾用引用块样式）。
+                _tbl_lines: list[str] = []
+                for _ln in _ft_text.splitlines():
+                    _s = _ln.strip().lstrip(">").strip()
+                    if _s.startswith("|"):
+                        _tbl_lines.append(_s)
+                    elif _tbl_lines and _s:
+                        break
+                if _tbl_lines:
+                    _ft_overview = "\n".join(_tbl_lines)
     scores = scores_payload.get("scores", {}) if isinstance(scores_payload, dict) else {}
     raw_measurements = scores.get("raw_measurements", {}) if isinstance(scores.get("raw_measurements"), dict) else {}
     baseline_metrics = raw_measurements.get("baseline", {}) if isinstance(raw_measurements.get("baseline"), dict) else {}
@@ -2020,7 +2045,7 @@ def _build_benchmark_report(
             f"{_n_untested} 个功能任务**全部未完成评测**（评测侧限制，未真实执行），"
             "故 baseline / with_skill 字符数为 N/A（没有执行，因此无从统计）——"
             "这**不等于被测技能没有产出**，也不作为技能缺陷判定"
-            "（详见 §4.1 标注为「未实测」的条目）。\n"
+            "（详见 §4.3 标注为「未实测」的条目）。\n"
         )
     else:
         _b_chars_txt = _count_text(baseline_metrics.get("total_characters"))
@@ -2294,7 +2319,7 @@ def _build_benchmark_report(
                 # 评分路径一律用中文表述；skill_failed 不能直译为「技能失败」——
                 # 其真实含义是「本次评测未完成该任务」，原因多为评测执行侧限制
                 # （如调用需动态参数、需多步调用），不代表被测技能不具备该能力，
-                # 具体限制原因见 §4.1 中标注为「未实测」的条目。
+                # 具体限制原因见 §4.3 中标注为「未实测」的条目。
                 path={
                     "both_succeed": "双方均可完成",
                     "skill_only": "仅带技能可完成",
@@ -2498,7 +2523,7 @@ def _build_benchmark_report(
     # 样本设计缺陷段：与 E27 / build_sample_pack 同源判断，违规任务不混入用户功能能力表
     if _defect_lines:
         _defect_block = (
-            f"\n### 4.2 样本设计缺陷（不计入用户功能能力，须修正后重测）\n\n"
+            f"\n### 4.4 样本设计缺陷（不计入用户功能能力，须修正后重测）\n\n"
             f"> 以下任务经同源反模式校验（对齐「能力追溯硬约束」E27），"
             f"其 `capability_source` 指向内部过程章节或 `objective` 命中通用占位，"
             f"**非被测技能用户可感知功能**，不得计入 §4.1 用户功能能力表。\n\n"
@@ -2606,14 +2631,19 @@ def _build_benchmark_report(
 
 ## 4. 被测技能功能能力
 
-> 本节约罗列被测技能**用户真实可感知的功能能力**（而非评测流程的中间产物）：每一项对应一个用户可调用、可验证的技能能力，标明它在「仅加载技能」与「裸 Agent（屏蔽技能内部知识）」下是否可达。
-> 本表为**可执行验证**的功能任务子集（须有可触发的调用方式）；完整用户服务场景（含咨询答疑、人工评审等无法自动执行的场景）见开始阶段评测报告「功能表」——两者为全集与可测子集的关系，条目数不同属设计口径差异，非评测遗漏（ERR-021 三方对应）。
+> 本节展示被测技能**用户真实可感知的功能能力**（而非评测流程的中间产物）。§4.1 功能能力总览与开始阶段评测报告「功能表」**同源一致**（同一数据源，逐字相同）；§4.2 为其中**可自动执行**功能任务的验证结果——无法自动执行的场景（如咨询答疑、人工评审）不在验证表，其能力以 §4.1 总览为准。
 {_na_note}
+### 4.1 功能能力总览（与开始阶段评测报告「功能表」同源一致）
+
+{_ft_overview}
+
+### 4.2 功能任务执行验证（可执行子集）
+
 | 用户关注的功能 | with_skill 成功 | baseline 成功 | 任务评分 | 评分路径 |
 | --- | --- | --- | --- | --- |
 {chr(10).join(task_rows)}
 
-### 4.1 结果解读（人话）
+### 4.3 结果解读（人话）
 
 {chr(10).join(_human_lines)}
 
@@ -2691,7 +2721,7 @@ def _build_benchmark_report(
 - 总功能任务数 = `{_valid_task_count}`{_internal_note}。其去向有三类（三者相加即 `{_valid_task_count}`，无遗漏）：
   - **`{_n_both_possible}` 个双方都能完成（可比集，进入效能对比）**；
   - **`{_n_incremental}` 个只有 with_skill 能完成（baseline 缺少技能私有知识源、屏蔽下做不到），即增量覆盖 `reach={_n_incremental}`**；
-  - **`{_n_untested}` 个本次未完成评测（评测侧限制，非技能缺陷，不进入上述两类判定）**，原因见 §4.1 标注为「未实测」的条目。
+  - **`{_n_untested}` 个本次未完成评测（评测侧限制，非技能缺陷，不进入上述两类判定）**，原因见 §4.3 标注为「未实测」的条目。
 
 | 用户关注的功能 | baseline 耗时 | with_skill 耗时 | 耗时对比（with_skill vs baseline） | token 倍率 |
 | --- | --- | --- | --- | --- |
