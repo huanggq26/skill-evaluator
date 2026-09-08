@@ -251,7 +251,15 @@ def _recompute_task_metrics(task: dict[str, Any]) -> dict[str, Any]:
         task_score = 0.0
         scoring_path = "skill_failed"
     elif not baseline_success:
-        task_score = 100.0
+        # 增量能力：满分 × 交付质量（rubric 通过率）。ERR-023：「交付了」不再直接满分——
+        # 阈值判定（如 8/10 即 pass）使 8/9/10 达标此前得同样的 100，评分无区分度；
+        # 通过率数据缺失（无 rubric 的旧任务）兼容保持 100。
+        _inc_passed = _to_int(task.get("with_skill_passed_checks"))
+        _inc_total = _to_int(task.get("with_skill_total_checks")) or _to_int(task.get("rubric_count"))
+        if _inc_passed is not None and _inc_total:
+            task_score = _clamp_score(100.0 * _inc_passed / _inc_total)
+        else:
+            task_score = 100.0
         scoring_path = "incremental_utility"
     else:
         scoring_path = "both_succeed"

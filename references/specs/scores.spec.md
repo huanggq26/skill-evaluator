@@ -90,7 +90,9 @@
 - **UtilityScore** = `average(task_score over valid tasks)`
 - **task_score**:
   - `0` 若 skill_success = 0
-  - `100` 若 skill_success = 1 且 baseline_success = 0
+  - `100 × rubric 通过率` 若 skill_success = 1 且 baseline_success = 0
+    （增量能力：满分 × 交付质量，通过率 = with_skill_passed_checks / total_checks，
+    数据缺失时按 100 兼容——ERR-023：部分达标与全部达标应有区分）
   - `phi(task_efficiency_score)` 若两者均通过
 - **SecurityScore** = `(Abnormal + Permission + Sensitive) / 3`
 - **Overall** = `UtilityScore`（**已废弃为展示参考**；门禁判定由 `verdict` 规则式裁决，见下）：

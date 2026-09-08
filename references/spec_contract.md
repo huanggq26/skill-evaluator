@@ -81,9 +81,14 @@ ExecAgent 完成后，SpecAgent 按以下顺序执行：
 任务级分数：
 
 ```text
-task_score = 0                      if skill_success = 0
-task_score = 100                    if skill_success = 1 and baseline_success = 0
-task_score = phi(task_efficiency)   if skill_success = 1 and baseline_success = 1
+task_score = 0                              if skill_success = 0
+task_score = 100 × rubric 通过率             if skill_success = 1 and baseline_success = 0
+                                            （增量能力：满分 × 交付质量；rubric 通过率
+                                             = with_skill_passed_checks / total_checks，
+                                             数据缺失时按 100 兼容。ERR-023：
+                                             「交付了」不再直接满分——8/10 与 10/10
+                                             达标应有区分）
+task_score = phi(task_efficiency)           if skill_success = 1 and baseline_success = 1
 ```
 
 效率项：

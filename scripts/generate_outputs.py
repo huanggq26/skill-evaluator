@@ -2591,7 +2591,7 @@ def _build_benchmark_report(
     _sec4_defect_no = "4.3" if _ft_integrated_rows else "4.4"
     if _ft_integrated_rows:
         _sec4_body = (
-            "| 功能（服务场景） | with_skill 成功 | baseline 成功 | 任务评分 | 说明 |\n"
+            "| 功能（服务场景） | with_skill 成功 | baseline 成功 | 任务价值分 | 说明 |\n"
             "| --- | --- | --- | --- | --- |\n"
             + "\n".join(_ft_integrated_rows)
         )
@@ -2600,7 +2600,7 @@ def _build_benchmark_report(
             "### 4.1 功能能力总览（与开始阶段评测报告「功能表」同源一致）\n\n"
             f"{_ft_overview}\n\n"
             "### 4.2 功能任务执行验证（可执行子集）\n\n"
-            "| 用户关注的功能 | with_skill 成功 | baseline 成功 | 任务评分 | 评分路径 |\n"
+            "| 用户关注的功能 | with_skill 成功 | baseline 成功 | 任务价值分 | 评分路径 |\n"
             "| --- | --- | --- | --- | --- |\n"
             + "\n".join(task_rows)
         )
@@ -2717,6 +2717,7 @@ def _build_benchmark_report(
 ## 4. 被测技能功能能力
 
 > 本节展示被测技能**用户真实可感知的功能能力**（而非评测流程的中间产物）**及其验证状态**，与开始阶段评测报告「功能表」同源一致：每条功能能力标注其**可自动执行部分**的验证结果；无法自动执行的场景（如咨询答疑、本地命令触发、人工评审）验证列显示「—」，其能力以功能表口径为准，不因未验证而扣分。
+> 「任务价值分」口径（ERR-023）：增量能力（baseline 做不到、仅技能可完成）= 满分 × 交付质量（rubric 通过率）；可比能力（双方都能完成）= 效能分；技能未能交付 = 0。
 {_na_note}
 {_sec4_body}
 
