@@ -2035,6 +2035,36 @@ def _build_benchmark_report(
     _mult_time_val = _as_float(_avg_mult_time)
     _mult_time_text = f"{_mult_time_val:.2f}x" if _mult_time_val is not None else "N/A"
     _comp_count = int(_as_float(scores.get("comparable_both_success_tasks")) or 0)
+    # ── 未实测判定（与 §4.1 / assemble_findings._is_untested 同源，上移供 §1/§3/§4 共用）──
+    # 背景（ERR-022 实证）：此前 §3/§1 把「全部任务未实测」错误归因为「baseline 做不到的
+    # 能力缺口」，§4 表格把未实测渲染成「否 / 0.00」（失败语义）——同一事实三种矛盾表述。
+    def _untested_reason_for(_exec_dir, _tid: str) -> str:
+        """读取 with_skill 执行产物，判断该任务是否「未真实执行」。
+
+        result.json 的 status 为 unsupported/blocked 且 summary/notes 含评测侧限制
+        说明时，视为未实测。用于避免把「评测未执行」渲染成「技能未能交付该能力」。
+        """
+        try:
+            rp = Path(_exec_dir) / "with_skill" / "tasks" / _tid / "results" / "result.json"
+            if not rp.is_file():
+                return ""
+            res = json.loads(rp.read_text(encoding="utf-8"))
+        except (OSError, TypeError, ValueError):
+            return ""
+        status = str(res.get("status", "")).lower()
+        if status not in ("unsupported", "blocked"):
+            return ""
+        blob = " ".join([str(res.get("summary", "")), " ".join(res.get("notes", []) or [])])
+        for marker in ("未执行", "无法自动确定", "未伪造", "屏蔽态", "未真实执行"):
+            if marker in blob:
+                return res.get("summary") or marker
+        return ""
+
+    _n_untested_total = sum(
+        1 for _t in functional_tasks
+        if _untested_reason_for(exec_dir, str(_t.get("task_id")))
+    )
+
     # 「因 baseline 未实现同等功能而排除」的任务 = baseline 客观上做不到、只有 with_skill 能完成的任务
     # （即增量覆盖 incremental_utility，含依赖技能私有知识源、裸 Agent 屏蔽下无法完成的任务）。
     # 注意：这些任务 scoring_path 已是 incremental_utility（不再是 both_succeed），不能用
@@ -2057,12 +2087,25 @@ def _build_benchmark_report(
     )
     # §1 仅用「可比任务」口径的效能增值；无重叠可比任务时强制 N/A，避免 -300% 误导
     _eff_gain_display = _comp_time_change if _comp_count > 0 else None
-    # §3 正文：面向用户、数据驱动；无可比样本时直接说明，不渲染空表格与无数据注释
+    # §3 正文：面向用户、数据驱动；无可比样本时直接说明，不渲染空表格与无数据注释。
+    # ⚠️ 无可比样本的原因须如实区分（ERR-022 实证：曾把「未实测」错说成「能力缺口」，
+    # 与 §4 的不适用标注自相矛盾）。
     if _comp_count == 0:
-        _sec3_body = (
-            "本次**无 baseline 与 with_skill 的可比样本**：所有功能任务均为 baseline 在屏蔽被测技能私有知识源后"
-            "客观上无法独立完成的能力缺口（即技能独有的用户价值），因此效能（耗时/开销）对比不适用，无样本可比对。"
-        )
+        if not functional_tasks:
+            _sec3_body = (
+                "本次**无可比样本**：未抽取到可执行的功能任务（功能维度不适用，见 §4），"
+                "效能（耗时/开销）对比不适用。"
+            )
+        elif _n_untested_total == len(functional_tasks):
+            _sec3_body = (
+                "本次**无可比样本**：全部功能任务均未实测（评测侧无可执行入口，非技能缺陷，"
+                "见 §4 不适用标注），效能（耗时/开销）对比不适用，无样本可比对。"
+            )
+        else:
+            _sec3_body = (
+                "本次**无 baseline 与 with_skill 的可比样本**：所有功能任务均为 baseline 在屏蔽被测技能私有知识源后"
+                "客观上无法独立完成的能力缺口（即技能独有的用户价值），因此效能（耗时/开销）对比不适用，无样本可比对。"
+            )
     else:
         _sec3_body = (
             "本次可比任务共 `{_comp_count}` 个（双方都能完成，纳入效能对比）：\n\n"
@@ -2084,11 +2127,20 @@ def _build_benchmark_report(
         else f"安全评分 {_score_text(scores.get('security_score'))}。"
     )
     if _comp_count == 0:
-        # 所有功能任务均为 baseline 客观上无法独立完成的能力缺口（A 类），不进入效能倍率轴
-        risk = (
-            "无重叠可比任务，效能对比不适用"
-            "（所有功能任务均为 baseline 客观上无法独立完成的能力缺口，不进入效能倍率轴，故不构成「退化」）。"
-        )
+        # 无可比任务的原因须如实区分（ERR-022：未实测 ≠ 能力缺口）
+        if not functional_tasks:
+            risk = "无可比任务：未抽取到可执行功能任务（功能维度不适用，见 §4）。"
+        elif _n_untested_total == len(functional_tasks):
+            risk = (
+                "无可比任务：全部功能任务均未实测（评测侧无可执行入口，非技能缺陷，见 §4 不适用标注），"
+                "效能对比不适用，不构成「退化」判断依据。"
+            )
+        else:
+            # 所有功能任务均为 baseline 客观上无法独立完成的能力缺口（A 类），不进入效能倍率轴
+            risk = (
+                "无重叠可比任务，效能对比不适用"
+                "（所有功能任务均为 baseline 客观上无法独立完成的能力缺口，不进入效能倍率轴，故不构成「退化」）。"
+            )
     elif (scores.get("skill_failed_tasks") or 0) > 0:
         risk = f"技能失败任务 {_count_text(scores.get('skill_failed_tasks'))} 个。"
     else:
@@ -2218,6 +2270,9 @@ def _build_benchmark_report(
         _tid = str(task.get("task_id"))
         _disp = _cell_text(_cap_map.get(_tid, _tid))
         _prop = task.get("requires_proprietary_source") is True
+        # 未实测判定（与 §4.1 同源）：未实测 ≠ 失败——不得渲染成「否 / 0.00」，
+        # 否则同一行内「失败语义三列」与「非技能缺陷」评分路径自相矛盾（ERR-022 实证）。
+        _untested_row = bool(_untested_reason_for(exec_dir, _tid))
         # 依赖专用源的任务：baseline 在屏蔽被测技能内部知识后结构上无法完成，
         # 故 baseline 标记为「否（依赖专用源，裸 Agent 屏蔽下无法完成）」，并归入「仅 with_skill 可完成」
         # （即增量能力 reach 的实证来源，而非排除集）。
@@ -2227,12 +2282,15 @@ def _build_benchmark_report(
             else _yn(task.get("baseline_success"))
         )
         _ss = _yn(task.get("skill_success"))
+        if _untested_row:
+            _ss = "—（未实测）"
+            _bs = "—（未实测）"
         task_rows.append(
             "| {task_id} | {skill_success} | {baseline_success} | {task_score} | {path} |".format(
                 task_id=_disp,
                 skill_success=_ss,
                 baseline_success=_bs,
-                task_score=_score_text(task.get("task_score")),
+                task_score=("—" if _untested_row else _score_text(task.get("task_score"))),
                 # 评分路径一律用中文表述；skill_failed 不能直译为「技能失败」——
                 # 其真实含义是「本次评测未完成该任务」，原因多为评测执行侧限制
                 # （如调用需动态参数、需多步调用），不代表被测技能不具备该能力，
@@ -2320,29 +2378,6 @@ def _build_benchmark_report(
     _n_unique = _n_both = _n_fail = _n_worse = _n_untested = 0
     _defect_lines: list[str] = []
     _untested_tasks: list[str] = []
-
-    def _untested_reason_for(_exec_dir, _tid: str) -> str:
-        """读取 with_skill 执行产物，判断该任务是否「未真实执行」。
-
-        与 assemble_findings 的 _is_untested 同源判定：result.json 的 status 为
-        unsupported/blocked 且 summary/notes 含评测侧限制说明时，视为未实测。
-        用于避免把「评测未执行」渲染成「技能未能交付该能力」。
-        """
-        try:
-            rp = Path(_exec_dir) / "with_skill" / "tasks" / _tid / "results" / "result.json"
-            if not rp.is_file():
-                return ""
-            res = json.loads(rp.read_text(encoding="utf-8"))
-        except (OSError, TypeError, ValueError):
-            return ""
-        status = str(res.get("status", "")).lower()
-        if status not in ("unsupported", "blocked"):
-            return ""
-        blob = " ".join([str(res.get("summary", "")), " ".join(res.get("notes", []) or [])])
-        for marker in ("未执行", "无法自动确定", "未伪造", "屏蔽态", "未真实执行"):
-            if marker in blob:
-                return res.get("summary") or marker
-        return ""
 
     def _clean_cap(text: str) -> str:
         """功能名去 Markdown 标记：title 常含 **加粗**，直接套进 `**{cap}**` 会形成
