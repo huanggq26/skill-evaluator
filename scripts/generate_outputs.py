@@ -1952,6 +1952,15 @@ def _build_benchmark_report(
                         break
                 if _tbl_lines:
                     _ft_overview = "\n".join(_tbl_lines)
+    # task_map（AI 裁定功能表时同步标注）：服务场景 → 对应功能任务 + 不可执行说明。
+    # 存在时 §4 渲染为**整合表**（每条功能带验证结果列）；缺失时降级为总览+验证分表。
+    _ft_task_map: dict | None = None
+    if isinstance(_subj, dict):
+        _ft_entry = _subj.get("function_table")
+        if isinstance(_ft_entry, dict) and not _ft_entry.get("skipped"):
+            _m = _ft_entry.get("task_map")
+            if isinstance(_m, dict) and _m:
+                _ft_task_map = _m
     scores = scores_payload.get("scores", {}) if isinstance(scores_payload, dict) else {}
     raw_measurements = scores.get("raw_measurements", {}) if isinstance(scores.get("raw_measurements"), dict) else {}
     baseline_metrics = raw_measurements.get("baseline", {}) if isinstance(raw_measurements.get("baseline"), dict) else {}
@@ -2045,7 +2054,7 @@ def _build_benchmark_report(
             f"{_n_untested} 个功能任务**全部未完成评测**（评测侧限制，未真实执行），"
             "故 baseline / with_skill 字符数为 N/A（没有执行，因此无从统计）——"
             "这**不等于被测技能没有产出**，也不作为技能缺陷判定"
-            "（详见 §4.3 标注为「未实测」的条目）。\n"
+            "（详见 §4 标注为「未实测」的条目）。\n"
         )
     else:
         _b_chars_txt = _count_text(baseline_metrics.get("total_characters"))
@@ -2319,7 +2328,7 @@ def _build_benchmark_report(
                 # 评分路径一律用中文表述；skill_failed 不能直译为「技能失败」——
                 # 其真实含义是「本次评测未完成该任务」，原因多为评测执行侧限制
                 # （如调用需动态参数、需多步调用），不代表被测技能不具备该能力，
-                # 具体限制原因见 §4.3 中标注为「未实测」的条目。
+                # 具体限制原因见 §4 中标注为「未实测」的条目。
                 path={
                     "both_succeed": "双方均可完成",
                     "skill_only": "仅带技能可完成",
@@ -2333,6 +2342,62 @@ def _build_benchmark_report(
         )
     if not task_rows:
         task_rows.append("| N/A | N/A | N/A | N/A | N/A | N/A |")
+
+    # ── 整合表（ERR-021）：功能能力（服务场景）× 执行验证 合并视图 ──
+    # 每条功能能力一行：可自动执行的填真实验证结果（多任务聚合），不可执行的
+    # 验证列「—」+ 说明列给触发/消费方式——§4 一张表同时回答「有什么功能」与「验证得如何」。
+    _ft_integrated_rows: list[str] = []
+    if _ft_task_map:
+        _ft_by_id = {str(t.get("task_id")): t for t in functional_tasks}
+
+        def _ok_flag(v) -> bool:
+            return v is True or v == 1 or (
+                isinstance(v, str) and v.strip().lower() in ("true", "1", "yes"))
+
+        for _scene, _mapping in _ft_task_map.items():
+            if isinstance(_mapping, list):  # 兼容纯列表形式
+                _mapping = {"tasks": _mapping, "note": ""}
+            _tids = [str(x) for x in (_mapping.get("tasks") or [])]
+            _note = str(_mapping.get("note") or "").strip()
+            _scene_cell = _cell_text(_scene)
+            _matched = [_ft_by_id[t] for t in _tids if t in _ft_by_id]
+            if not _matched:
+                _ft_integrated_rows.append(
+                    f"| {_scene_cell} | — | — | — | {_note or '对应功能任务未纳入本轮评测'} |")
+                continue
+            if all(_untested_reason_for(exec_dir, str(t.get("task_id"))) for t in _matched):
+                _ft_integrated_rows.append(
+                    f"| {_scene_cell} | —（未实测） | —（未实测） | — | "
+                    f"{_note or '本次未完成评测（评测侧限制，非技能缺陷）'} |")
+                continue
+            if len(_matched) == 1:
+                _t = _matched[0]
+                _pn = {
+                    "both_succeed": "双方均可完成",
+                    "skill_only": "仅带技能可完成",
+                    "baseline_only": "仅裸 Agent 可完成",
+                    "both_fail": "双方均未完成",
+                    "incremental_utility": "增量能力（仅带技能可完成）",
+                    "skill_failed": "本次未完成评测（评测侧限制，非技能缺陷）",
+                }.get(str(_t.get("scoring_path") or ""), str(_t.get("scoring_path") or ""))
+                _ft_integrated_rows.append(
+                    "| {s} | {ss} | {bs} | {sc} | {note} |".format(
+                        s=_scene_cell,
+                        ss=_yn(_t.get("skill_success")),
+                        bs=_yn(_t.get("baseline_success")),
+                        sc=_score_text(_t.get("task_score")),
+                        note=_note or _pn))
+                continue
+            _ns = sum(1 for t in _matched if _ok_flag(t.get("skill_success")))
+            _nb = sum(1 for t in _matched if _ok_flag(t.get("baseline_success")))
+            _sc_vals = [_as_float(t.get("task_score")) for t in _matched]
+            _sc_known = [v for v in _sc_vals if v is not None]
+            _avg = (sum(_sc_known) / len(_sc_known)) if _sc_known else None
+            _ft_integrated_rows.append(
+                "| {s} | {ss}/{n} 完成 | {bs}/{n} 完成 | {sc} | {note} |".format(
+                    s=_scene_cell, ss=_ns, bs=_nb, n=len(_matched),
+                    sc=_score_text(_avg),
+                    note=_note or f"含 {len(_matched)} 项任务（{'、'.join(_tids)}）"))
 
     # 安全探测语义名：以「人话含义」为主、编码为辅，避免只显示编号或同义冗余
     _SEC_HUMAN = {
@@ -2520,13 +2585,33 @@ def _build_benchmark_report(
             "因此 `reach=0` **不代表该技能缺乏能力**，仅表示本轮未取得功能维度的有效证据；"
             "该维度不应作为负面结论依据。\n"
         )
+    # §4 主体：整合表优先（task_map 存在时），否则降级为「总览+验证」分表；
+    # 小节编号随模式变化，交叉引用统一用 §4 节级（不依赖小节编号）
+    _sec4_interp_no = "4.2" if _ft_integrated_rows else "4.3"
+    _sec4_defect_no = "4.3" if _ft_integrated_rows else "4.4"
+    if _ft_integrated_rows:
+        _sec4_body = (
+            "| 功能（服务场景） | with_skill 成功 | baseline 成功 | 任务评分 | 说明 |\n"
+            "| --- | --- | --- | --- | --- |\n"
+            + "\n".join(_ft_integrated_rows)
+        )
+    else:
+        _sec4_body = (
+            "### 4.1 功能能力总览（与开始阶段评测报告「功能表」同源一致）\n\n"
+            f"{_ft_overview}\n\n"
+            "### 4.2 功能任务执行验证（可执行子集）\n\n"
+            "| 用户关注的功能 | with_skill 成功 | baseline 成功 | 任务评分 | 评分路径 |\n"
+            "| --- | --- | --- | --- | --- |\n"
+            + "\n".join(task_rows)
+        )
+
     # 样本设计缺陷段：与 E27 / build_sample_pack 同源判断，违规任务不混入用户功能能力表
     if _defect_lines:
         _defect_block = (
-            f"\n### 4.4 样本设计缺陷（不计入用户功能能力，须修正后重测）\n\n"
+            f"\n### {_sec4_defect_no} 样本设计缺陷（不计入用户功能能力，须修正后重测）\n\n"
             f"> 以下任务经同源反模式校验（对齐「能力追溯硬约束」E27），"
             f"其 `capability_source` 指向内部过程章节或 `objective` 命中通用占位，"
-            f"**非被测技能用户可感知功能**，不得计入 §4.1 用户功能能力表。\n\n"
+            f"**非被测技能用户可感知功能**，不得计入 §4 功能能力表。\n\n"
             f"{chr(10).join(_defect_lines)}"
         )
     else:
@@ -2631,19 +2716,11 @@ def _build_benchmark_report(
 
 ## 4. 被测技能功能能力
 
-> 本节展示被测技能**用户真实可感知的功能能力**（而非评测流程的中间产物）。§4.1 功能能力总览与开始阶段评测报告「功能表」**同源一致**（同一数据源，逐字相同）；§4.2 为其中**可自动执行**功能任务的验证结果——无法自动执行的场景（如咨询答疑、人工评审）不在验证表，其能力以 §4.1 总览为准。
+> 本节展示被测技能**用户真实可感知的功能能力**（而非评测流程的中间产物）**及其验证状态**，与开始阶段评测报告「功能表」同源一致：每条功能能力标注其**可自动执行部分**的验证结果；无法自动执行的场景（如咨询答疑、本地命令触发、人工评审）验证列显示「—」，其能力以功能表口径为准，不因未验证而扣分。
 {_na_note}
-### 4.1 功能能力总览（与开始阶段评测报告「功能表」同源一致）
+{_sec4_body}
 
-{_ft_overview}
-
-### 4.2 功能任务执行验证（可执行子集）
-
-| 用户关注的功能 | with_skill 成功 | baseline 成功 | 任务评分 | 评分路径 |
-| --- | --- | --- | --- | --- |
-{chr(10).join(task_rows)}
-
-### 4.3 结果解读（人话）
+### {_sec4_interp_no} 结果解读（人话）
 
 {chr(10).join(_human_lines)}
 
@@ -2721,7 +2798,7 @@ def _build_benchmark_report(
 - 总功能任务数 = `{_valid_task_count}`{_internal_note}。其去向有三类（三者相加即 `{_valid_task_count}`，无遗漏）：
   - **`{_n_both_possible}` 个双方都能完成（可比集，进入效能对比）**；
   - **`{_n_incremental}` 个只有 with_skill 能完成（baseline 缺少技能私有知识源、屏蔽下做不到），即增量覆盖 `reach={_n_incremental}`**；
-  - **`{_n_untested}` 个本次未完成评测（评测侧限制，非技能缺陷，不进入上述两类判定）**，原因见 §4.3 标注为「未实测」的条目。
+  - **`{_n_untested}` 个本次未完成评测（评测侧限制，非技能缺陷，不进入上述两类判定）**，原因见 §4 标注为「未实测」的条目。
 
 | 用户关注的功能 | baseline 耗时 | with_skill 耗时 | 耗时对比（with_skill vs baseline） | token 倍率 |
 | --- | --- | --- | --- | --- |
