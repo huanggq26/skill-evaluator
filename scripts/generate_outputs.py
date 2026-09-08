@@ -2343,6 +2343,27 @@ def _build_benchmark_report(
     if not task_rows:
         task_rows.append("| N/A | N/A | N/A | N/A | N/A | N/A |")
 
+    # ── 评分器模式检测（ERR-024 止损）──
+    # 若 R1–R10 仍是 build_sample_pack 的**同构模板**（十份拷贝的结构校验），
+    # 分值只代表 result.json 结构合规，不代表交付质量——必须在报告中明示，
+    # 避免 10/10 被误读为质量满分。语义判据生成后（rubric_mode=semantic）标注自动消失。
+    _rubric_note = ""
+    for _e in (manifest.get("functional_tasks") or []):
+        _cd = str(_e.get("case_dir") or "")
+        if not _cd:
+            continue
+        _mp = samples_dir / _cd / "Grader" / "grader_manifest.json"
+        if not _mp.is_file():
+            continue
+        if (grader_manifest := _read_json(_mp)) is None:
+            continue
+        if grader_manifest.get("rubric_mode") != "semantic":
+            _rubric_note = (
+                "\n> ⚠️ **评分器为脚手架模板态**：本批 R1–R10 是同一结构校验的十份拷贝，"
+                "分值仅代表 result.json 结构合规，**不代表交付质量**。"
+                "生成语义判据后再评：`python3 scripts/gen_semantic_rubrics.py --sample-dir <sample>`。")
+            break
+
     # ── 整合表（ERR-021）：功能能力（服务场景）× 执行验证 合并视图 ──
     # 每条功能能力一行：可自动执行的填真实验证结果（多任务聚合），不可执行的
     # 验证列「—」+ 说明列给触发/消费方式——§4 一张表同时回答「有什么功能」与「验证得如何」。
@@ -2717,7 +2738,7 @@ def _build_benchmark_report(
 ## 4. 被测技能功能能力
 
 > 本节展示被测技能**用户真实可感知的功能能力**（而非评测流程的中间产物）**及其验证状态**，与开始阶段评测报告「功能表」同源一致：每条功能能力标注其**可自动执行部分**的验证结果；无法自动执行的场景（如咨询答疑、本地命令触发、人工评审）验证列显示「—」，其能力以功能表口径为准，不因未验证而扣分。
-> 「任务价值分」口径（ERR-023）：增量能力（baseline 做不到、仅技能可完成）= 满分 × 交付质量（rubric 通过率）；可比能力（双方都能完成）= 效能分；技能未能交付 = 0。
+> 「任务价值分」口径（ERR-023）：增量能力（baseline 做不到、仅技能可完成）= 满分 × 交付质量（rubric 通过率）；可比能力（双方都能完成）= 效能分；技能未能交付 = 0。{_rubric_note}
 {_na_note}
 {_sec4_body}
 
