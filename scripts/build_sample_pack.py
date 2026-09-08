@@ -253,7 +253,13 @@ def _load_functional_jsonl(path: Path) -> list:
                     )
             rows.append(obj)
     if not rows:
-        raise SystemExit(f"[schema] {path} 无有效行")
+        # ERR-018 治本：空功能清单是**合法状态**（阶段0按功能表口径过滤纯产物句后为空，
+        # 如工具型/构建器类技能）。返回空列表让 manifest 正常生成（functional_tasks=[]），
+        # 下游 exec/generate 均已兼容空任务；不再 SystemExit 硬中止
+        # （否则管线连安全/质量维度都评不了）。
+        print(f"[schema] ⚠️ {path} 无功能任务行（阶段0按功能表口径过滤后为空，"
+              f"功能维度不适用）：生成空功能样本包，管线继续。", file=sys.stderr)
+        return []
     return rows
 
 

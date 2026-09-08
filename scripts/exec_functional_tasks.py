@@ -594,8 +594,12 @@ def main() -> int:
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     tasks = manifest.get("functional_tasks", [])
     if not tasks:
-        print("[exec] manifest 无 functional_tasks", file=sys.stderr)
-        return 2
+        # ERR-018 治本：空功能清单是**合法状态**（阶段0按功能表口径过滤后为空，
+        # 如工具型技能全文仅有产出物句）。无任务可执行 ≠ 错误；返回 0 让管线继续，
+        # 安全/质量维度照常评测（此前 return 2 会让 runner 硬中止，连其他维度都评不了）。
+        print("[exec] manifest 功能任务为空（阶段0按功能表口径未抽到用户功能，"
+              "功能维度不适用）：本模式无事可做，跳过执行，不视为失败。", file=sys.stderr)
+        return 0
 
     # 从被测技能 manifest 的 external_deps 提取 API base（通用，不硬编码某技能域名）
     base_url = ""

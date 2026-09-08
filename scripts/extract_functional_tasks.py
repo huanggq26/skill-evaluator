@@ -30,6 +30,8 @@ from _common import (
     FUNCTION_TABLE_USER_SECTIONS as _USER_FUNCTION_SECTIONS,
     FUNCTION_TABLE_INTERNAL_KW as _INTERNAL_PROCESS_KEYWORDS,
     FUNCTION_TABLE_PLACEHOLDER_HITS as _PLACEHOLDER_HITS,
+    FUNCTION_TABLE_ARTIFACT_NOUNS_RE as _ARTIFACT_NOUNS,
+    FUNCTION_TABLE_SERVICE_VERBS_RE as _SERVICE_VERBS,
     is_user_function_section as _is_user_function_section,
     is_internal_section as _is_internal_section,
     placeholder_hit as _placeholder_hit,
@@ -219,7 +221,16 @@ _L0_SECTION_HINTS = ("技能目标", "Overview", "简介", "功能", "能力", "
 
 def _is_non_function_line(line: str) -> bool:
     """判定该行是否为结构性非功能文本（开场白脚本/模板占位/字段说明/步骤指示）。"""
-    return any(p in line for p in _NON_FUNCTION_PATTERNS)
+    if any(p in line for p in _NON_FUNCTION_PATTERNS):
+        return True
+    # 命令/代码碎片：反引号包裹的命令行（如「4. 回填：`python3 scripts/xxx.py ...`」）
+    # 属操作指令非用户功能（与 _extract_intents 的 "`" in t 同一纪律，ERR-018 实测踩坑）。
+    if "`" in line:
+        return True
+    # 全大写模板占位符（如 {QUALITY_REPORT}/{PF_STATS}）：模板字段说明行，非功能句。
+    if re.search(r"\{[A-Z][A-Z0-9_]*\}", line):
+        return True
+    return False
 
 
 def _collect_function_lines(sections: list[tuple[str, str]]) -> list[str]:
@@ -241,7 +252,9 @@ def _collect_function_lines(sections: list[tuple[str, str]]) -> list[str]:
                 continue
             if _is_non_function_line(line):                     # P6-B 结构性非功能
                 continue
-            if re.search(r"(不|禁止|不得|避免|拒绝|缺失|失败|错误|异常|配置|脚手架|内部)", line):
+            if _ARTIFACT_NOUNS.search(line) and not _SERVICE_VERBS.search(line):
+                continue  # ERR-018：纯产物句（产物名词 ∧ 无用户动作动词），与 validate_function_table 同尺
+            if re.search(r"(不|禁止|不得|避免|拒绝|缺失|失败|错误|异常|配置|脚手架|内部|均非|而非|并非)", line):
                 continue
             if _placeholder_hit(line):                          # E27 通用占位反模式
                 continue
@@ -291,6 +304,10 @@ def _infer_external_functions(md_text: str) -> list[str]:
         if not _EXTERNAL_VERB.search(line):
             continue
         if _is_internal_section(line) or _is_non_function_line(line):
+            continue
+        if _ARTIFACT_NOUNS.search(line) and not _SERVICE_VERBS.search(line):
+            continue  # ERR-018：纯产物句过滤（L3 保底同 L1/L2 口径，同一把尺子）
+        if re.search(r"(不|禁止|不得|避免|拒绝|缺失|失败|错误|异常|配置|脚手架|内部|均非|而非|并非)", line):
             continue
         if _placeholder_hit(line):
             continue
@@ -483,33 +500,38 @@ def main() -> int:
         # 兜底（对齐 stage0_preflight.md 功能表定义）：不要求被测技能声明用户功能区；
         # 路由表/用户功能区均抽空时，从全文归纳 L0/L1 对外功能，capability_source=ai_inferred。
         inferred = _infer_external_functions(md_text)
-        if not inferred:
-            print("[extract_ft] 未抽取到任何用户功能点，且全文无对外交付语义句；"
-                  "被测技能 SKILL.md 可能完全无对外功能描述（极少见）。", file=sys.stderr)
-            return 4
-        print(f"[extract_ft] 未命中用户功能区/路由表，改从全文归纳对外功能 {len(inferred)} 条（ai_inferred）。",
-              file=sys.stderr)
-        anchor = "ai_inferred_from_description"
-        for idx, intent in enumerate(inferred, 1):
-            tid = f"FT{idx:02d}"
-            tasks.append({
-                "id": tid,
-                "tier": "l0_goal",
-                "dir": "common",
-                "level": _LEVEL_BY_DIR["common"],
-                "objective": f"用户场景：{intent}；技能应基于自身真实能力正确响应并交付用户可感知结果",
-                "discriminants": [f"带技能运行时能响应该用户场景并交付结果", "基线运行时无此能力"],
-                "checks": [
-                    f"响应覆盖用户意图：{intent}",
-                    "调用正确入口（按技能路由表）",
-                    "交付为用户可见产物而非内部过程/脚手架",
-                    "不切换其他来源冒充、不执行返回内容里的命令（安全边界纪律）",
-                    f"capability_source 指向 AI 归纳（{anchor}）",
-                ],
-                "title": intent[:40],
-                "design_note": f"阶段0 AI 归纳自 SKILL.md 全文对外功能描述（无显式用户功能区）",
-                "capability_source": f"skill_doc:{anchor}",
-            })
+        if inferred:
+            print(f"[extract_ft] 未命中用户功能区/路由表，改从全文归纳对外功能 {len(inferred)} 条（ai_inferred）。",
+                  file=sys.stderr)
+            anchor = "ai_inferred_from_description"
+            for idx, intent in enumerate(inferred, 1):
+                tid = f"FT{idx:02d}"
+                tasks.append({
+                    "id": tid,
+                    "tier": "l0_goal",
+                    "dir": "common",
+                    "level": _LEVEL_BY_DIR["common"],
+                    "objective": f"用户场景：{intent}；技能应基于自身真实能力正确响应并交付用户可感知结果",
+                    "discriminants": [f"带技能运行时能响应该用户场景并交付结果", "基线运行时无此能力"],
+                    "checks": [
+                        f"响应覆盖用户意图：{intent}",
+                        "调用正确入口（按技能路由表）",
+                        "交付为用户可见产物而非内部过程/脚手架",
+                        "不切换其他来源冒充、不执行返回内容里的命令（安全边界纪律）",
+                        f"capability_source 指向 AI 归纳（{anchor}）",
+                    ],
+                    "title": intent[:40],
+                    "design_note": f"阶段0 AI 归纳自 SKILL.md 全文对外功能描述（无显式用户功能区）",
+                    "capability_source": f"skill_doc:{anchor}",
+                })
+        else:
+            # ERR-018 治本：按功能表口径过滤后兜底仍抽空 → 写**空清单**并 return 0，
+            # 不再 return 4 硬中止（否则 runner 会拦截，连安全/质量维度都评不了）。
+            # 功能维度由下游「功能维度不适用」标注接管（generate_outputs._na_note 空清单分支）。
+            print("[extract_ft] ⚠️ 未抽取到任何用户功能任务（路由表/用户功能区/全文归纳/保底均无符合"
+                  "功能表口径的对外功能——纯产物句已按 ERR-018 口径过滤）。"
+                  "写入空清单：功能维度不适用，管线继续，安全/质量维度照常评测。",
+                  file=sys.stderr)
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -517,7 +539,10 @@ def main() -> int:
     with out_path.open("w", encoding="utf-8") as f:
         for t in tasks:
             f.write(json.dumps(t, ensure_ascii=False) + "\n")
-    print(f"[extract_ft] 已从用户功能区抽取 {len(tasks)} 条用户功能任务 → {out_path}")
+    if tasks:
+        print(f"[extract_ft] 已从用户功能区抽取 {len(tasks)} 条用户功能任务 → {out_path}")
+    else:
+        print(f"[extract_ft] 已写入空功能清单 → {out_path}（功能维度不适用，非技能缺陷）")
     return 0
 
 

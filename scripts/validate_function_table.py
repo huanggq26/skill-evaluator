@@ -26,23 +26,16 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+# 词表从 _common 导入（ERR-018 治本：与 extract_functional_tasks 兜底过滤共用同一把尺子，
+# 单一权威来源在 _common.py，禁止两处各自内联维护）
 try:
     from _common import FUNCTION_TABLE_INTERNAL_KW as _INTERNAL_KW
+    from _common import FUNCTION_TABLE_ARTIFACT_NOUNS_RE as _ARTIFACT_NOUNS
+    from _common import FUNCTION_TABLE_SERVICE_VERBS_RE as _SERVICE_VERBS
 except Exception:  # 守卫常量缺失时不阻断黑名单校验
     _INTERNAL_KW = ()
-
-# ── 产物 / 过程构件黑名单（条目级；与章节级的 FUNCTION_TABLE_INTERNAL_KW 互补）──
-_ARTIFACT_NOUNS = re.compile(
-    r"(JSON|json|文件|报告生成|评分聚合|质量门禁|门禁\s*JSON|中间产物|"
-    r"流水线产物|产物清单|脚手架|数据文件|生成物|artifact)"
-)
-
-# ── 用户动作动词（服务视角的标志）─────────────────────────────
-_SERVICE_VERBS = re.compile(
-    r"(查询|评测|评估|测试|检查|校验|解答|咨询|答疑|使用|触发|运行|执行|"
-    r"获取|浏览|检索|同步|读取|把关|测一测|解读|归纳|看结果|续跑|跑|"
-    r"发现|追踪|订阅|归档)"
-)
+    _ARTIFACT_NOUNS = None
+    _SERVICE_VERBS = None
 
 _CJK_WORD = re.compile(r"[\u4e00-\u9fff]{2,4}")
 
@@ -109,9 +102,9 @@ def main() -> int:
     table_words: set = set()
 
     for r in rows:
-        has_artifact = bool(_ARTIFACT_NOUNS.search(r))
+        has_artifact = bool(_ARTIFACT_NOUNS and _ARTIFACT_NOUNS.search(r))
         has_internal = any(kw and kw in r for kw in _INTERNAL_KW)
-        has_service = bool(_SERVICE_VERBS.search(r))
+        has_service = bool(_SERVICE_VERBS and _SERVICE_VERBS.search(r))
         table_words |= set(_CJK_WORD.findall(r))
 
         if (has_artifact or has_internal) and not has_service:

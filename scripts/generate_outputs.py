@@ -2121,7 +2121,7 @@ def _build_benchmark_report(
     _conclusion_outline = [
         f"- 安全评分：`{_sec_text}`（异常行为 / 权限边界 / 敏感数据 三项维度）",
         f"- 增量覆盖：`reach={_score_text(_reach_rate)}（{_reach_abs} 个）`"
-        + ("（⚠️ 若功能维度本次不适用——即全部功能任务均未实测——"
+        + ("（⚠️ 若功能维度本次不适用——无功能任务或全部任务未实测——"
            "则 `reach=0` 不代表技能缺乏能力，详见 §4）" if not _reach_abs else ""),
         f"- 效能增值（执行时间）："
         f"{('`'+_ratio_text(_eff_gain_display)+'`' if _comp_count > 0 else '效能测试无样本（无 baseline 可比任务，不进入效能倍率轴）')}"
@@ -2427,20 +2427,32 @@ def _build_benchmark_report(
             _fix = "改进方向：见该能力 TaskDescription 与 problem_report.md 对应条目"
         _human_lines.append(f"- **{_cap}**{_scenario}：{_v}。{_fix}")
     _human_summary = (
-        f"本评测衡量 {len(functional_tasks)} 项用户真实关心的功能能力："
-        f"{_n_unique} 项仅 with_skill 可完成（技能带来的独有价值，含须依赖专用知识源的任务），"
-        f"{_n_both} 项双方均可完成（可比集），"
-        f"{_n_fail} 项技能也未能交付（需优先改进），"
-        f"{_n_worse} 项技能劣于 baseline"
-        + (f"，另有 {_n_untested} 项本次未实测（评测执行侧未覆盖，非技能缺陷，结论不覆盖这些能力："
-           f"{'、'.join(_untested_tasks)}）" if _n_untested else "")
-        + "。"
+        (f"本评测衡量 {len(functional_tasks)} 项用户真实关心的功能能力："
+         f"{_n_unique} 项仅 with_skill 可完成（技能带来的独有价值，含须依赖专用知识源的任务），"
+         f"{_n_both} 项双方均可完成（可比集），"
+         f"{_n_fail} 项技能也未能交付（需优先改进），"
+         f"{_n_worse} 项技能劣于 baseline"
+         + (f"，另有 {_n_untested} 项本次未实测（评测执行侧未覆盖，非技能缺陷，结论不覆盖这些能力："
+            f"{'、'.join(_untested_tasks)}）" if _n_untested else "")
+         + "。")
+        if functional_tasks else
+        "本次未抽取到可执行的用户功能任务（阶段0按功能表口径过滤后为空，功能维度不适用，非技能缺陷）。"
     )
     # 功能维度整体不适用：全部功能任务均未实测时，明确告知 reach=0 不表示技能缺乏能力。
     # 否则读者会把「评测侧无验证入口」误读为「被测技能没有增量价值」，
     # 与 ERR-017「机器只陈述事实、不越权判断」同一原则。
+    # ERR-018 治本：新增空清单分支——兜底抽取按功能表口径（排除纯产物句）过滤后为空时，
+    # 功能任务数为 0，原条件（functional_tasks 非空）不会触发，须单独标注。
     _na_note = ""
-    if functional_tasks and _n_untested == len(functional_tasks):
+    if not functional_tasks:
+        _na_note = (
+            "\n> ⚠️ **功能维度本次不适用**：阶段 0 按功能表唯一权威定义"
+            "（排除产出物/中间产物/内部脚手架）未抽取到可执行的用户功能任务"
+            "（非技能缺陷，工具型/构建器类技能可能属此情况）。"
+            "因此 `reach=0` **不代表该技能缺乏能力**，仅表示本轮未取得功能维度的有效证据；"
+            "该维度不应作为负面结论依据。\n"
+        )
+    elif _n_untested == len(functional_tasks):
         _na_note = (
             "\n> ⚠️ **功能维度本次不适用**：全部 "
             f"{len(functional_tasks)} 项功能任务均未完成验证"
