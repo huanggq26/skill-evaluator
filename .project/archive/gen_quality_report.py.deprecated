@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+"""【已废弃 / DEPRECATED】阶段 0A 质量报告草稿 markdown 生成器（旧方案 C 拼字符串路径）。
+
+⚠ 本脚本已被方案 C+ 取代，不再被 run_eval_pipeline.sh 调用：
+   报告生成职责拆分为——
+     - scripts/build_objective_data.py  : 客观事实 → objective 维度级 JSON（不拼字符串）
+     - scripts/merge_report_data.py     : 客观 + 主观(AI) → 唯一 report_data.json
+     - scripts/render_report.py         : 按 assets/report.template.md 标注回填 → 最终报告
+  保留本文件仅为历史回溯；其 build_report 的字符串拼接逻辑不再是报告格式真相，
+  「定义只在一处」的真相源是 assets/report.template.md 的 HTML 注释标注 + schema 抽取器。
+  如需回归旧行为，请使用 test_session_fixes.py 中改造后的 C+ 等价断言，而非本脚本。
+"""
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+from typing import Any
+
+
+def _load_stats(stats: Path) -> dict[str, Any]:
+    return json.loads(stats.read_text(encoding="utf-8"))
+
+
+def _severity_color(severity: str) -> str:
+    return "red" if severity == "严重" else "GoldenRod"
+
+
+def _format_problem_rows(rows: list[dict[str, str]]) -> str:
+    """rows: [{pos, reason}] -> markdown 表格体，级别固定 warning。
+
+    无问题时返回空串，由调用处直接写「无」（模板：无问题不出表头/噪声行）。
+    """
+    if not rows:
+        return ""
+    out = []
+    for r in rows:
+        color = _severity_color(r.get("severity", "警告"))
+        out.append(
+            f"| {r['check']} | <font color='{color}'>{r['pos']}</font> | {r['reason']} |"
+        )
+    return "\n".join(out)
+
+
+def build_report(stats: dict[str, Any]) -> str:
+    name_chars = stats.get("name_chars", 0)
+    desc_chars = stats.get("description_chars", 0)
+    body_chars = stats.get("body_chars", 0)
+    frontmatter_valid = stats.get("frontmatter_valid", False)
+    broken_links = stats.get("broken_file_links", []) or []
+    missing_sections = stats.get("missing_sections", []) or []
+    machine_paths = stats.get("machine_absolute_paths", []) or []
+    crlf = stats.get("crlf_scripts", []) or []
+    shebang = stats.get("script_shebang", []) or []
+
+    # ── 结构与组织问题 ──
+    struct_rows: list[dict[str, str]] = []
+    for s in missing_sections:
+        struct_rows.append({
+            "check": "标准章节缺失",
+            "pos": "SKILL.md:1",
+            "reason": f"技能缺少「{s}」推荐章节",
+            "severity": "警告",
+        })
+    for b in broken_links:
+        struct_rows.append({
+            "check": "文件链接失效",
+            "pos": "SKILL.md:1",
+            "reason": f"指向「{b}」的链接已失效（文件不存在）",
+            "severity": "警告",
+        })
+
+    # ── 可移植性（客观项；无问题写「无」，不出表）──
+    if machine_paths:
+        port_problems = "| 路径与机器耦合 | <font color='GoldenRod'>SKILL.md:1</font> | 存在硬编码绝对路径 |"
+    elif crlf:
+        port_problems = "| 脚本行尾兼容 | <font color='GoldenRod'>SKILL.md:1</font> | 存在 Windows 风格换行符 |"
+    else:
+        port_problems = ""
+
+    # ── 对外依赖（客观：无外部调用则填无）──
+    # extract_stats 不直接含调用清单；这里仅呈现"无"占位，调用细节由 AI 依据技能补全。
+    deps_summary = "无（客观探测见阶段 0B 可用性章节；本草稿不重复）"
+
+    lines = []
+    lines.append("# 技能质量评估报告")
+    lines.append("")
+    lines.append("## 技能摘要")
+    lines.append(
+        f"统计信息：技能名 {name_chars} 字，一句话描述 {desc_chars} 字，正文 {body_chars} 字"
+    )
+    lines.append("")
+    lines.append("多模态能力：[待 AI 复核]")
+    lines.append("")
+    lines.append("功能表（取自技能 L0 技能目标的对外交付物）：")
+    lines.append("")
+    lines.append("| 名称 | 实现功能 | 调用前提 | 使用示例 |")
+    lines.append("| --- | --- | --- | --- |")
+    lines.append("| [待 AI 复核] | [待 AI 复核] | [待 AI 复核] | [待 AI 复核] |")
+    lines.append("")
+    lines.append("### 格式检查")
+    lines.append("")
+    lines.append("#### Frontmatter 质量")
+    if frontmatter_valid:
+        lines.append("无")
+    else:
+        lines.append("| 检查项 | 问题位置 | 违反原因 |")
+        lines.append("| --- | --- | --- |")
+        lines.append("| Frontmatter 无效 | <font color='red'>SKILL.md:1</font> | frontmatter 解析失败 |")
+    lines.append("")
+    lines.append("#### 结构与组织")
+    lines.append("")
+    if struct_rows:
+        lines.append("| 检查项 | 问题位置 | 违反原因 |")
+        lines.append("| --- | --- | --- |")
+        lines.append(_format_problem_rows(struct_rows))
+    else:
+        lines.append("无")
+    lines.append("")
+    lines.append("#### 文法和语法")
+    lines.append("无")
+    lines.append("")
+    lines.append("### 对外依赖")
+    lines.append("")
+    lines.append("#### 调用其他Tools")
+    lines.append("显式调用（为空写\"无\"）：")
+    lines.append("")
+    lines.append("| 调用名称 | 实现功能 | 使用场景 | 问题备注 |")
+    lines.append("| --- | --- | --- | --- |")
+    lines.append(f"| [待 AI 复核] | [待 AI 复核] | [待 AI 复核] | {deps_summary} |")
+    lines.append("")
+    lines.append("隐式调用（为空写\"无\"）：")
+    lines.append("")
+    lines.append("| 调用名称 | 实现功能 | 使用场景 | 调用推理依据 |")
+    lines.append("| --- | --- | --- | --- |")
+    lines.append("| — | — | — | — |")
+    lines.append("")
+    lines.append("#### 调用其他Skills")
+    lines.append("显式调用（为空写\"无\"）、隐式调用（为空写\"无\"）：表结构同「调用其他Tools」。")
+    lines.append("")
+    lines.append("#### 调用系统命令")
+    lines.append("显式调用（为空写\"无\"）：")
+    lines.append("")
+    lines.append("| 调用指令 | 实现功能 | 使用场景 | 问题备注 |")
+    lines.append("| --- | --- | --- | --- |")
+    lines.append("| — | — | — | — |")
+    lines.append("")
+    lines.append("隐式调用（为空写\"无\"）：")
+    lines.append("")
+    lines.append("| 调用指令 | 实现功能 | 使用场景 | 调用推理依据 |")
+    lines.append("| --- | --- | --- | --- |")
+    lines.append("| — | — | — | — |")
+    lines.append("")
+    lines.append("### 内容验证")
+    lines.append("")
+    lines.append("#### 内容正确")
+    lines.append("[待 AI 复核]")
+    lines.append("")
+    lines.append("#### 内容完整")
+    lines.append("[待 AI 复核]")
+    lines.append("")
+    lines.append("#### 评测目标与技能范围对齐")
+    lines.append("[待 AI 复核]")
+    lines.append("")
+    lines.append("#### 内容冗余")
+    lines.append("[待 AI 复核]")
+    lines.append("")
+    lines.append("#### 内容不明确")
+    lines.append("[待 AI 复核]")
+    lines.append("")
+    lines.append("### 生态适配")
+    lines.append("")
+    lines.append("#### 分类与关联（Placement & Relations）")
+    lines.append("[待 AI 复核]")
+    lines.append("")
+    lines.append("#### 身份与触发（Identity & Trigger）")
+    lines.append("[待 AI 复核]")
+    lines.append("")
+    lines.append("#### 可移植性（跨机器/跨平台）")
+    lines.append("")
+    if port_problems:
+        lines.append("| 检查项 | 问题位置 | 违反原因 |")
+        lines.append("| --- | --- | --- |")
+        lines.append(port_problems)
+    else:
+        lines.append("无")
+    lines.append("")
+    lines.append("### 外部依赖可用性")
+    lines.append("")
+    lines.append("> 可用性探测结果由阶段 0B 并入本章节（无外部依赖时整节省略）。")
+    lines.append("")
+    lines.append("### 关键问题汇总")
+    lines.append("")
+    lines.append("#### 严重（影响正常加载运行）")
+    lines.append("1. 无")
+    lines.append("#### 警告（影响逻辑解读或执行）")
+    sev_idx = 1
+    for r in struct_rows:
+        lines.append(f"{sev_idx}. {r['reason']}（{r['pos']}）")
+        sev_idx += 1
+    if sev_idx == 1:
+        lines.append("1. 无")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description="阶段 0A 质量报告草稿自动生成器")
+    ap.add_argument("--stats", required=True, help="extract_stats.json 路径")
+    ap.add_argument("--out", required=True, help="输出报告 markdown 路径")
+    args = ap.parse_args()
+
+    stats = _load_stats(Path(args.stats))
+    report = build_report(stats)
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(report, encoding="utf-8")
+    print(f"[gen_quality_report] 草稿已生成: {out}（客观项已填，主观项标记 [待 AI 复核]）")
+
+
+if __name__ == "__main__":
+    main()

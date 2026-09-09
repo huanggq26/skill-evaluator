@@ -1,0 +1,13 @@
+# 发布隔离：与版本控制解耦
+#
+# 背景：治理区（.project/）与规范区（openspec/）是项目长期资产，无法重建，
+#       须纳入版本管理做备份（见 .gitignore 相应条款）；
+#       但二者随发布包分发会污染发布包，须在打包时排除。
+#
+# 机制：本文件的 export-ignore 只在 `git archive` 打包时生效，
+#       不影响 git 追踪——即「入库备份」与「不进发布包」二者兼得。
+#       发布区由 check_release_isolation.py 显式枚举
+#       （references/ scripts/ assets/ + SKILL.md），与本机制互为双保险。
+
+.project/** export-ignore
+openspec/** export-ignore

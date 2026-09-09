@@ -2,15 +2,20 @@
 # 目的：排除「治理区」「运行时产物」与「机器相关残留」，
 #      避免把维护期文件、本机路径、编译缓存、系统元数据带进发布包（可移植性与洁净度）。
 
-# ── 治理区（仅维护期使用，禁止发布）─────────────────────────
-# 说明：含 AGENTS_RULES.md / TASKLOG.md / archive/ / backup/ / tmp/，
-#      约束本项目自身管理，不参与业务逻辑，对使用者零价值。
-#      整目录过滤，一条规则覆盖全部治理文件。
-#      例外：错误档案区为长期资产（md 权威源，无法重建），须版本化。
-#      注：父目录整目录排除时子目录负向规则不生效，故用 .project/* 而非 .project/
-.project/*
-!.project/error_registry/
+# ── 治理区（纳入版本管理做备份；发布过滤见 .gitattributes）────────
+# 说明：治理区（AGENTS_RULES.md / TASKLOG.md / archive/ / tmp/ 治理脚本 /
+#      error_registry/）是项目长期资产，**无法重建**，须版本化备份。
+#      发布过滤不再依赖本文件，改由 .gitattributes 的 export-ignore 承担
+#      ——版本控制（是否备份）与发布过滤（是否进包）解耦，各管一件事。
+#      例外：errindex.db 由 md 派生、可重建；backup/ 为登记式临时备份，均不入库。
 .project/error_registry/errindex.db
+.project/backup/
+
+# ── 规范驱动工作区 ───────────────────────────────────────
+# 说明：openspec/ 存变更契约与行为说明书，属长期资产，纳入版本管理备份；
+#      但随发布包分发会污染发布包，故由 export-ignore 在打包时过滤。
+#      .codebuddy/ 为平台机制目录，由工具生成、可重建，不入库。
+.codebuddy/
 
 # ── 治理入口文件（仅维护期使用，禁止发布）───────────────────
 # 说明：AGENTS.md / CODEBUDDY.md / opencode.json 均为治理注入入口，
