@@ -7,10 +7,12 @@
 当功能。本脚本提供归纳后的机械校验，与 merge_report_data 的占位提醒（源头）
 构成双保险。
 
-三层校验：
+四层校验：
   1. 产物黑名单（违规，exit 1）：条目含产出物/过程构件名词，且无用户动作词
   2. 服务视角（警告）：条目缺少用户动作动词，提示人工复核
   3. 同源检查（警告）：功能表整体与 frontmatter description 无任何内容词交集
+  4. 三方漂移（警告）：能力声明 / 用户指南 / 功能表 三处描述互不覆盖
+     ——对应 ERR-021 修改策略第 4 条；只报告不阻断、不自动修复
 
 用法：
   python3 validate_function_table.py --report <quality/xx评测.md> \\
@@ -38,6 +40,75 @@ except Exception:  # 守卫常量缺失时不阻断黑名单校验
     _SERVICE_VERBS = None
 
 _CJK_WORD = re.compile(r"[\u4e00-\u9fff]{2,4}")
+
+# ── 三方漂移检测（ERR-021 修改策略第 4 条）────────────────────────
+# 无区分度通用词：任何技能的描述里都会出现，不构成能力差异，比对前剔除
+_STOP_WORDS = frozenset({
+    "可以", "支持", "使用", "进行", "通过", "这个", "什么", "怎么", "以及",
+    "一个", "我们", "你的", "如果", "需要", "就是", "不是", "还有", "其他",
+    "评测", "技能", "报告", "结果", "阶段", "过程",
+})
+_GUIDE_SECTION_RE = re.compile(r"^##\s+1[.\s]")
+
+
+def _load_guide_functions(skill_dir: Path) -> str:
+    """提取用户指南「这是什么，什么时候用」章节正文（至下一同级标题止）。
+
+    章节缺失或结构变化时返回空，由调用方按「缺失」告警——不静默跳过。
+    """
+    g = skill_dir / "references" / "USER_GUIDE.md"
+    if not g.is_file():
+        return ""
+    in_sec = False
+    buf: list[str] = []
+    for line in g.read_text(encoding="utf-8", errors="replace").splitlines():
+        if re.match(r"^##\s", line):
+            if in_sec:
+                break
+            if _GUIDE_SECTION_RE.match(line):
+                in_sec = True
+            continue
+        if in_sec:
+            buf.append(line)
+    return "\n".join(buf)
+
+
+def _content_words(text: str) -> set:
+    """文本 → 能力词集合（剔除无区分度通用词）。"""
+    return {w for w in _CJK_WORD.findall(text or "") if w not in _STOP_WORDS}
+
+
+def _check_three_way_drift(desc: str, guide: str, table: str) -> list:
+    """三处功能描述比对，返回可读告警（警告级，不阻断、不自动修复）。
+
+    只做两类**机械可靠**的判定：
+      1. 缺项：某处无功能描述（或描述中无可区分能力词）；
+      2. 零交集：两处之间没有任何共同能力词。
+
+    **不判定「新增未同步」**：实测三处描述因视角与详略天然不同（定位声明 / 使用指南 /
+    服务场景表），机械词缺失率恒在 68%–98%，且样例为「今日 vs 今天」「事件追踪 vs 事件」
+    这类同义改写——词面无法区分「能力缺失」与「用词不同」，断言必然误报。
+    该层级的漂移判定需要语义理解，交由 AI 裁定环节，不由本脚本承担。
+
+    不内置任何被测技能专属词表，只做「声明了什么」与「描述了什么」的通用比对。
+    """
+    texts = {"能力声明": desc, "用户指南": guide, "功能表": table}
+    words = {k: _content_words(v) for k, v in texts.items()}
+    alerts: list[str] = []
+
+    for name, ws in words.items():
+        if not (texts[name] or "").strip():
+            alerts.append(f"[三方漂移] 「{name}」缺失功能描述，无法参与三方比对（请补全后再校验）")
+        elif not ws:
+            alerts.append(f"[三方漂移] 「{name}」有描述但缺乏可区分的能力词，无法有效比对")
+
+    for a, b in (("能力声明", "用户指南"), ("能力声明", "功能表"), ("用户指南", "功能表")):
+        wa, wb = words[a], words[b]
+        if not wa or not wb:
+            continue                      # 缺项已单独告警，此处不重复
+        if not (wa & wb):
+            alerts.append(f"[三方漂移] 「{a}」与「{b}」无任何共同能力词，疑似描述漂移")
+    return alerts
 
 
 def _extract_table_rows(report: Path) -> list:
@@ -118,6 +189,10 @@ def main() -> int:
     if desc_words and not (desc_words & table_words):
         warns.append("功能表与 frontmatter description 无内容词交集，"
                      "疑似偏离权威来源，请对照 description 复核")
+
+    # 三方漂移检查（ERR-021 第 4 条）：警告级，不阻断、不改变裁决
+    guide_text = _load_guide_functions(args.skill_dir)
+    warns.extend(_check_three_way_drift(desc, guide_text, " | ".join(rows)))
 
     print(f"[validate_ft] 功能表共 {len(rows)} 条")
     if violations:
