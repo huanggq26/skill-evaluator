@@ -8,6 +8,9 @@
 #       不影响 git 追踪——即「入库备份」与「不进发布包」二者兼得。
 #       发布区由 check_release_isolation.py 显式枚举
 #       （references/ scripts/ assets/ + SKILL.md），与本机制互为双保险。
+#
+# 写法要点：规则写目录名本身（不带 /**）才能连同目录条目一起排除；
+#           只写 `dir/**` 会残留空目录条目。
 
-.project/** export-ignore
-openspec/** export-ignore
+.project export-ignore
+openspec export-ignore
