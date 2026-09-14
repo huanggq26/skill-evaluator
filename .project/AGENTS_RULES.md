@@ -281,6 +281,7 @@ LLM 在以下任一动作前**必须先读本段**，动作后**同步维护**�
 6. **失败归属**：`category ∈ {contract_defect（技能缺陷，否决）, env_issue（环境/网络，不否决）, config_defect（未配置，不否决）}`；`kind` 描性质、`category` 描归属，二者经 `dep_probe.py` 关联。
 7. **与安全边界**：安全管「行为合规」（`sensitive-info-leak` / `permission-boundary`），可用性管「依赖可达与契约成立」（DEP-AVAIL）；凭证泄露归安全、凭证可用归可用性。该边界以本段为准，`config.md` 不重复定义。
 8. **常量与 verdict 分流**：新增 `DEPENDENCY_GATE`、`DEP_RETRY_MAX`；`scores.json` 增 `dependency_score`/`dependency_skipped`/`dependency.dimensions`；`_compute_verdict` 新增 `dependency_expected` 分流"有依赖却无探测=REJECT"。
+9. **可用性与随包完整性分离（2026-09-14 变更）**：`dimensions` **只承载外部运行时依赖**；随包文件（`internal_resources`）的探测结果由独立字段 `internal_checks` 承载，**不计入 `dependency_score`、不触发结构性否决**——前者验「运行时依赖通不通」，后者验「包里带没带全」，性质不同，混计会让报告同时写着"只统计外部依赖"却把随包算进去。随包缺失/不可读由**质量报告「随包资源完整性」小节**呈现并提示改进（发现问题必须提示，但不上架否决）。`dependency_expected` 仅由 `external_deps` 非空判定，随包资源不参与该判定。
 
 ### 维护触发（强制）
 
@@ -381,6 +382,7 @@ LLM 在以下任一动作前**必须先读本段 + `references/dependency_availa
 | 发布区无开发态残留 | 跑 `.project/tmp/check_release_isolation.py`（退出码 0）；命中即阻断（原 57 处已清零） |
 | 上级规格一致性 | 改本文件前通读 `层级/归属` 所列 `agent_spec_writing_standard.md` 与 `project_spec_maintenance.md`，逐条核对自身是否与之冲突 / 重复 / 失效；冲突修正本文件服从上级、重复去重仅留上级一处为准；规则歧义向规则建立人提出裁决 |
 | 锚点未失效 | 跑 `.project/tmp/check_links.py --scope <规格目录> --scope <其他项目治理区>`（退出码 0）；覆盖点分域名可定位 + 无违规 MD 链接。悬空引用须按语义近似匹配重扫更新（见 `agent_spec_writing_standard.md#维护约定.跨文档锚点失效兜底`） |
+| 已知不计入阻断 | **跨项目引用不计为悬空**：形如各项目 `.project/specs/CODING_PROJECT_APPENDIX.md` 的引用，按 `CODING_AND_NAMING_STANDARDS.md` 第 15 行由各项目自建附录；该文件适用边界为量化 C++，本仓不适用。降噪待办见 TASKLOG `G4` |
 
 ## 上级规格一致性纪律（强制）
 
