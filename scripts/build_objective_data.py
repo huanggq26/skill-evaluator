@@ -126,6 +126,30 @@ def map_dependency_availability(probe: dict[str, Any]) -> dict[str, Any]:
     return {"rows": rows, "skipped": False, "skip_reason": ""}
 
 
+def map_internal_integrity(probe: dict[str, Any]) -> dict[str, Any]:
+    """internal_integrity：随包文件完整性，rows 仅含异常项（缺失 / 不可读）。
+
+    与 dependency_availability 的分工：本节验「包里带没带全」（静态完整性），
+    不计入可用性评分、不触发上架否决，只提示改进——故 advice 一律注明不否决。
+    级别：internal_missing（缺失，运行期行为残缺）→ 严重；
+         internal_unreadable（不可读，多为编码/权限）→ 警告。
+    """
+    if not probe:
+        return {"rows": [], "skipped": False, "skip_reason": ""}
+    rows: list[dict[str, str]] = []
+    cat_human = {"internal_missing": "随包文件缺失", "internal_unreadable": "随包文件不可读"}
+    for d in probe.get("internal_checks") or []:
+        if d.get("status") != "fail":
+            continue
+        loc = d.get("path") or d.get("dep_id") or ""
+        cat = d.get("category")
+        lvl = "严重" if cat == "internal_missing" else "警告"
+        reason = f"{lvl}：{cat_human.get(cat, cat)}：{d.get('message', '')}"
+        advice = "补全或修复后重测（不否决上架）"
+        rows.append(_row(loc, reason, advice))
+    return {"rows": rows, "skipped": False, "skip_reason": ""}
+
+
 # ───────────────────────── 技能摘要段客观字段 ─────────────────────────
 
 def map_stat_chars(s: dict[str, Any]) -> dict[str, Any]:
@@ -374,6 +398,7 @@ def build(stats: dict[str, Any], probe: dict[str, Any], skill_root: Path | None 
     for dim, mapper in OBJECTIVE_DIMS.items():
         out[dim] = {"rows": mapper(stats)}
     out["dependency_availability"] = map_dependency_availability(probe)
+    out["internal_integrity"] = map_internal_integrity(probe)
 
     # 技能摘要段客观字段
     out["stat_chars"] = map_stat_chars(stats)

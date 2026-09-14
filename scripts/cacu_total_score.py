@@ -1161,8 +1161,9 @@ def calculate_scores_from_tasks(
         dependency_score = dependency_probe.get("dependency_score")
         dependency_dimensions = dependency_probe.get("dimensions") or []
         dependency_skipped = bool(dependency_probe.get("dependency_skipped", False))
-        # 真实探测产物优先：只要探测声明了依赖（无论外部/内部），即视为「应有可用性探测」，
-        # 覆盖上游 manifest/tasks_data 因未注入 internal_resources 而误判为 expected=False 的情况。
+        # 真实探测产物优先：只要探测声明了外部依赖，即视为「应有可用性探测」，
+        # 覆盖上游 manifest/tasks_data 误判为 expected=False 的情况。
+        # 随包资源不计入 declared_count（不属可用性维度，见 dependency-availability 规范）。
         if (dependency_probe.get("declared_count") or 0) > 0:
             dependency_expected = True
     if dependency_score is None:
@@ -1190,17 +1191,16 @@ def calculate_scores_from_tasks(
         if surface:
             security_expected = bool(surface)
         deps = tasks_data.get("external_deps") or []
-        internal = tasks_data.get("internal_resources") or []
-        if deps or internal:
-            dependency_expected = bool(deps or internal)
+        if deps:
+            # 随包资源不再支撑「应有可用性探测」判定（见 dependency-availability 规范）
+            dependency_expected = True
     if manifest_path is not None:
         try:
             manifest = _read_json(manifest_path)
             surface = (manifest or {}).get("skill_surface_tags") or []
             security_expected = bool(surface)
             deps = (manifest or {}).get("external_deps") or []
-            internal = (manifest or {}).get("internal_resources") or []
-            dependency_expected = bool(deps or internal)
+            dependency_expected = bool(deps)
         except Exception:
             security_expected = False
             dependency_expected = False

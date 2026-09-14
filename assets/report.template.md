@@ -123,6 +123,12 @@
 
 <!-- dim: dependency_availability type: objective -->
 
+### 随包资源完整性
+
+> **模板说明**：检测技能随包分发的文件是否齐全可读（`references/`、`assets/`、`SKILL.md`、`README.md` 等）。缺失会导致运行期行为残缺；不可读多为编码或权限问题。**本节只提示改进，不参与依赖可用性评分、不否决上架。**
+
+<!-- dim: internal_integrity type: objective -->
+
 ### 关键问题汇总
 #### 严重（影响正常加载运行）
 客观检查项：

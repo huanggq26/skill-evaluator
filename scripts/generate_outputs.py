@@ -2644,10 +2644,10 @@ def _build_benchmark_report(
     _dep_skipped = bool(_dep.get("skipped")) or (bool(_dep.get("expected")) is False)
     _dep_score = _dep.get("score")
     _dep_rows = []
-    _int_rows = []
     _STATUS_HUMAN = {"pass": "可达", "fail": "不可达", "skip": "需补具体端点", "warn": "异常", "error": "探测出错"}
-    _CAT_HUMAN = {"contract_defect": "技能缺陷(否决)", "env_issue": "环境/网络瞬态", "config_defect": "配置待补",
-                  "internal_missing": "随包缺失(否决)", "internal_unreadable": "随包不可读(否决)"}
+    # 随包文件（internal_resource）已移出本维度：其结果在 independent `internal_checks`，
+    # 缺失/不可读由质量报告「随包资源完整性」呈现，不参与本评分、不否决。
+    _CAT_HUMAN = {"contract_defect": "技能缺陷(否决)", "env_issue": "环境/网络瞬态", "config_defect": "配置待补"}
     for d in _dep_dims:
         _d_status = d.get("status", "")
         _d_cat = d.get("category", "contract_defect")
@@ -2656,31 +2656,18 @@ def _build_benchmark_report(
         _raw_id = d.get("dep_id", "")
         _probe = d.get("probe_url") or d.get("target") or d.get("path") or ""
         _dep_label = _probe if _probe else _raw_id
-        if d.get("kind") == "internal_resource":
-            _int_rows.append(
-                "| {dep} | {status} | {category} | {score} | {retry} | {msg} |".format(
-                    dep=_dep_label,
-                    status=_STATUS_HUMAN.get(_d_status, _d_status),
-                    category=_d_cat_disp,
-                    score=d.get("score", "") if d.get("score") is not None else "—",
-                    retry=d.get("retry") or "—",
-                    msg=d.get("message", ""),
-                )
+        _dep_rows.append(
+            "| {dep} | {status} | {kind} | {category} | {score} | {retry} | {msg} |".format(
+                dep=_dep_label,
+                status=_STATUS_HUMAN.get(_d_status, _d_status),
+                kind="外部 API" if d.get("kind") == "external_api" else (d.get("kind") or "—"),
+                category=_d_cat_disp,
+                score=d.get("score", "") if d.get("score") is not None else "—",
+                retry=d.get("retry") or "—",
+                msg=d.get("message", ""),
             )
-        else:
-            _dep_rows.append(
-                "| {dep} | {status} | {kind} | {category} | {score} | {retry} | {msg} |".format(
-                    dep=_dep_label,
-                    status=_STATUS_HUMAN.get(_d_status, _d_status),
-                    kind="外部 API" if d.get("kind") == "external_api" else (d.get("kind") or "—"),
-                    category=_d_cat_disp,
-                    score=d.get("score", "") if d.get("score") is not None else "—",
-                    retry=d.get("retry") or "—",
-                    msg=d.get("message", ""),
-                )
-            )
-    _external_dims = [d for d in _dep_dims if d.get("kind") != "internal_resource"]
-    _internal_dims = [d for d in _dep_dims if d.get("kind") == "internal_resource"]
+        )
+    _external_dims = list(_dep_dims)
     # 外部依赖的通过/失败须按「外部维度」单独统计：_dep['passed'] 含内部随包文件，
     # 直接套用会出现「外部 6 项：通过 10」这类自相矛盾的数字。
     # 口径：status=pass → 结构性通过（可达）；status=fail → 结构性失败（否决）；
@@ -2690,7 +2677,7 @@ def _build_benchmark_report(
     _ext_failed = sum(1 for d in _external_dims if d.get("status") == "fail")
     _ext_other = len(_external_dims) - _ext_passed - _ext_failed
     if _dep_skipped:
-        _dep_summary = "- 依赖可用性探测：**跳过**。本次被测技能未声明任何外部/内部依赖，可用性维度整体不参与上架否决。"
+        _dep_summary = "- 依赖可用性探测：**跳过**。本次被测技能未声明任何外部运行时依赖，可用性维度整体不参与上架否决。"
     else:
         _dep_summary = (
             f"- 依赖可用性探测：已执行（外部运行时依赖 {len(_external_dims)} 项："
@@ -2701,11 +2688,9 @@ def _build_benchmark_report(
             f"说明：该评分只在「探测到技能结构性缺陷」时才直接否决上架；"
             f"环境/网络瞬态、配置缺失等问题只报告、不否决（见下方类别说明）。"
             + (
-                f"\n- **口径说明**：可用性评分**只统计外部运行时依赖**（域名/端点可达性、认证、配额）。"
-                f"另有 {len(_internal_dims)} 项被测技能项目内的随包文件检查属**阶段 0 静态评测范畴**，"
-                f"仅作完整性提示，**不计入本可用性评分**——静态文件是否存在与「运行时依赖是否可用」是两回事；"
-                f"其完整结论见 `quality/<技能名>评测.md`（本报告不重复呈现）。"
-                if _internal_dims else ""
+                f"\n- **口径说明**：可用性评分**只统计外部运行时依赖**（域名/端点可达性、认证、配额）；"
+                f"随包文件完整性不参与本评分、不否决上架——其缺失/不可读由 `quality/<技能名>评测.md`"
+                f"的「随包资源完整性」小节呈现（本报告不重复呈现）。"
             )
         )
 
@@ -2761,8 +2746,9 @@ def _build_benchmark_report(
 | --- | --- | --- | --- | --- | --- | --- |
 {chr(10).join(_dep_rows) if _dep_rows else "| （本次未声明外部依赖） | — | — | — | — | — | — |"}
 
-> **随包文件完整性（被测技能项目内的必读文件）不在此重复呈现**：其探测结果属阶段 0 静态评测范畴，
-> 与上方「运行时依赖可用性」性质不同，不计入依赖可用性评分；完整结论见 `quality/<技能名>评测.md`。
+> **随包文件完整性（被测技能项目内的必读文件）不在此重复呈现**：其缺失/不可读由
+> `quality/<技能名>评测.md` 的「随包资源完整性」小节呈现；与上方「运行时依赖可用性」性质不同，
+> 不计入依赖可用性评分、不否决上架。
 
 ## 6. 安全评估
 

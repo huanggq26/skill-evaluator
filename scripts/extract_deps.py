@@ -85,6 +85,10 @@ def _collect_internal_resources(skill_dir: str):
     用以验证「技能内部打包完整性」——若缺失会导致技能运行期行为残缺（如某技能的
     references/errors.md 决定失败降级话术、references/sync.md 决定同步机制）。
 
+    **用途边界（重要）**：本清单仅供质量报告「随包资源完整性」呈现——缺失或不可读须提示改进；
+    **不参与**依赖可用性评分、**不触发**上架否决。二者性质不同：本清单验「包里带没带全」，
+    依赖可用性验「运行时外部服务通不通」。详见 `dependency-availability` 规范。
+
     返回 list[dict]：{id, path, kind, required, description}
     """
     skill_dir = str(skill_dir)

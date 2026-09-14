@@ -186,22 +186,26 @@ def main() -> int:
 
     deps = manifest.get("external_deps") or []
     internal = manifest.get("internal_resources") or []
-    dims = [_probe_one(d) for d in deps]
     _skill_dir = str(manifest.get("skill_source") or "")
-    dims += [_probe_internal_one(r, _skill_dir) for r in internal]
+    # 外部运行时依赖：参与可用性评分与结构性否决
+    dims = [_probe_one(d) for d in deps]
+    # 随包完整性：不参与可用性评分、不触发否决；作为质量报告「随包资源完整性」的数据来源
+    internal_checks = [_probe_internal_one(r, _skill_dir) for r in internal]
     passed = sum(1 for d in dims if d.get("status") == "pass")
     failed = sum(1 for d in dims if d.get("status") == "fail")
-    # 结构性否决：存在 contract_defect（外部端点契约缺陷）或 internal_missing（随包缺失）且失败
-    structural_fail = any(d.get("category") in ("contract_defect", "internal_missing")
+    # 结构性否决：仅外部端点的 contract_defect（契约缺陷）；随包文件缺失/不可读不否决
+    structural_fail = any(d.get("category") == "contract_defect"
                           and d.get("status") == "fail" for d in dims)
-    declared = deps + internal
+    declared = deps
     score = 100 if (dims and failed == 0) else (0 if structural_fail else (50 if dims else None))
+    _int_fail = sum(1 for d in internal_checks if d.get("status") == "fail")
 
     out = {
         "expected": bool(declared),
         "declared_count": len(declared),
         "external_count": len(deps),
         "internal_count": len(internal),
+        "internal_checks": internal_checks,
         "executed": True,
         "dependency_score": score,
         "dependency_skipped": False,
@@ -215,8 +219,9 @@ def main() -> int:
     out_path = Path(args.output)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"[dep_probe] 已探测 {len(dims)} 项依赖（外部 {len(deps)} / 内部 {len(internal)}）→ {args.output} "
-          f"(通过 {passed}，失败 {failed}，结构性否决={structural_fail})")
+    print(f"[dep_probe] 外部依赖 {len(deps)} 项（通过 {passed}，失败 {failed}，结构性否决={structural_fail}）→ {args.output}"
+          + (f"；随包完整性 {len(internal)} 项，异常 {_int_fail} 项（仅提示、不否决、不计入评分）"
+             if internal else ""))
     return 0
 
 
