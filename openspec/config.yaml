@@ -31,7 +31,7 @@ context: |
 # Per-artifact rules — 各产物的硬性约束
 rules:
   proposal:
-    - 建变更前先做任务类别判定（判据：是否改变对外可观察行为），分流规则遵 `AGENTS_RULES.md#治理执行清单（薄层）` A 小节；治理改造类任务**不得**在此建变更
+    - 建变更前先做任务类别判定（判据：是否改变对外可观察行为），分流规则遵 `.project/AGENTS_RULES.md#治理执行清单（薄层）` A 小节；治理改造类任务**不得**在此建变更
     - 写明「本次是否触及历史错误（ERR 编号）」，无则写「无」
     - 显式列出范围与非目标（不做什么）
   specs:
@@ -44,7 +44,7 @@ rules:
   tasks:
     - 首条固定为「读项目规则层 + 按模块或标签查错误档案」
     - 步骤须可独立完成，完成后立即打勾（中断后从勾选状态续跑）
-    - 归档前自检项与初筛命令遵 `AGENTS_RULES.md#治理执行清单（薄层）` C 小节
+    - 归档前自检项与初筛命令遵 `.project/AGENTS_RULES.md#治理执行清单（薄层）` C 小节
 
 # Per-operation guidance — apply / archive 的挂接动作
 operations:
@@ -54,7 +54,7 @@ operations:
       - 发现新问题即时写入错误档案，不事后补记
   archive:
     guidance:
-      - 归档前按 `AGENTS_RULES.md#治理执行清单（薄层）` C 小节逐项自检（任务全勾 / validate --strict / 无 TBD 占位 / 回归退出码 0），任一项未过不得归档
+      - 归档前按 `.project/AGENTS_RULES.md#治理执行清单（薄层）` C 小节逐项自检（任务全勾 / validate --strict / 无 TBD 占位 / 回归退出码 0），任一项未过不得归档
       - 归档后同步规则层当前结论（行为类结论进规范区说明书）；
         非变更类决策追加到决策时序文件
       - 不回写任务记录；规则层不留逐条依据指针
