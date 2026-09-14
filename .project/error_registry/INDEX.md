@@ -17,6 +17,8 @@
 | ERR-008 | active | `E13` `#误报` | `S0 / extract_stats` | 正则字符串/举例被误判为硬编码路径 |
 | ERR-009 | active | `E33` `#系统性` `#误判史` | `_cross_cutting` | 「约束已写但未激活」**第五次出现** |
 | ERR-010 | active | `E01` `E02` | `_cross_cutting` | 需求出发点误判（机制完备性 vs 实际工作流） |
+| ERR-026 | active | `E01` `E12` | by_module/_cross_cutting.md | 重构文档时未读区域内容丢失（行数骤减未触发核查） |
+| ERR-027 | active | `E13` `E12` | by_module/_cross_cutting.md | 按行号截取破坏代码围栏配对（Mermaid 渲染失败） |
 
 ## 已退出
 
