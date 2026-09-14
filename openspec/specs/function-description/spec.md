@@ -1,13 +1,13 @@
 # function-description Specification
 
 ## Purpose
-TBD - created by archiving change add-three-way-drift-alert. Update Purpose after archive.
+定义功能描述漂移检测如何采集「这个技能有什么功能」的三处描述（技能入口文件的能力声明、用户指南的功能说明、质量报告的功能表），归一后判定缺项与零交集两类漂移，并输出可定位的警告级告警。本文件是该能力判定语义的唯一权威来源；载体路径与阈值等常量定义于配置文档，本文件不内联常量值。
 
 ## Requirements
 
 ### Requirement: 三方描述采集与归一
 
-系统 SHALL 从三处载体采集「这个技能有什么功能」的描述：技能入口文件的能力声明、用户指南中的功能说明、质量报告中的功能表。系统 MUST 在比对前对三处文本做统一归一（去除标点、空白与大小写差异），以确保比对结果不受书写格式影响。
+系统 MUST 从三处载体采集「这个技能有什么功能」的描述：技能入口文件的能力声明、用户指南中的功能说明、质量报告中的功能表。系统 MUST 在比对前对三处文本做统一归一（去除标点、空白与大小写差异），以确保比对结果不受书写格式影响。
 
 #### Scenario: 三处描述齐全时全部纳入比对
 
@@ -23,7 +23,7 @@ TBD - created by archiving change add-three-way-drift-alert. Update Purpose afte
 
 ### Requirement: 漂移判定只覆盖机械可靠的两类
 
-系统 SHALL 按下述两类判定漂移，并 MUST 保证判定基于归一后的实际内容而非条目数量：
+系统 MUST 按下述两类判定漂移，并 MUST 保证判定基于归一后的实际内容而非条目数量：
 
 1. **缺项**：某处载体完全无功能描述（或描述中不含任何可区分的能力词）；
 2. **零交集**：两处描述之间没有任何共同能力词。
@@ -56,7 +56,7 @@ TBD - created by archiving change add-three-way-drift-alert. Update Purpose afte
 
 ### Requirement: 告警可读且可操作
 
-系统 SHALL 以人类可读的形式输出漂移告警，每条告警 MUST 指明漂移的双方载体、具体缺失的能力项，以及应同步到哪一处载体。系统 MUST NOT 仅输出「存在漂移」而无定位信息。
+系统 MUST 以人类可读的形式输出漂移告警，每条告警 MUST 指明漂移的双方载体、具体缺失的能力项，以及应同步到哪一处载体。系统 MUST NOT 仅输出「存在漂移」而无定位信息。
 
 #### Scenario: 告警含定位与修复指引
 
@@ -66,7 +66,7 @@ TBD - created by archiving change add-three-way-drift-alert. Update Purpose afte
 
 ### Requirement: 告警不阻断流水线
 
-系统 SHALL 将漂移告警定为警告级：输出告警后 MUST NOT 改变退出码语义上的通过状态，MUST NOT 改变上架裁决的分档结果。
+系统 MUST 将漂移告警定为警告级：输出告警后 MUST NOT 改变退出码语义上的通过状态，MUST NOT 改变上架裁决的分档结果。
 
 #### Scenario: 有漂移时仍不否决
 
@@ -77,7 +77,7 @@ TBD - created by archiving change add-three-way-drift-alert. Update Purpose afte
 
 ### Requirement: 判定不绑定具体技能
 
-系统 SHALL 仅做「声明了什么」与「描述了什么」的通用比对，MUST NOT 内置任何被测技能专属的关键词、能力名或词表。
+系统 MUST 仅做「声明了什么」与「描述了什么」的通用比对，MUST NOT 内置任何被测技能专属的关键词、能力名或词表。
 
 #### Scenario: 换一个技能仍适用
 
