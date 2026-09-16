@@ -86,6 +86,19 @@
 
 命名：安装包 `skill-evaluator.zip`；备份 `skill-evaluator_project-backup_<YYYYMMDD>.zip`。打包命令与核对要求遵元规格。
 
+### 发布卫生自检（零容忍，分发前必过）
+
+安装包打包后、分发前 MUST 执行以下扫描；任一**非允许例外**命中即视为打包失败，不得分发：
+
+1. **本地绝对路径**：不得含本机专属绝对路径（`/Users/<user>/`、`/home/<user>/`、`C:\Users\…`）。被测技能检测规则中的正则字符串属功能内容，不在此限；但若作为**安装包自身**的路径示例出现则禁止。
+   - 范式：`grep -rniE "/Users/|/home/[a-z]+/" <解包目录>/`
+2. **平台专属目录（作为路径示例）**：说明/示例中不得写死任一 Agent 平台的用户级目录（`~/.codebuddy/skills/…`、`.claude/…`、`~/.config/opencode/…`），一律用平台中立占位 `{SKILLS_HOME}/<name>/` 指代。
+   - 范式：`grep -rniE "~/\.codebuddy/|\.codebuddy/skills|\.claude/|/\.config/opencode" <解包目录>/SKILL.md <解包目录>/references/`
+   - **允许例外**：① 兼容性声明（如 `agent_compatibility: […, codebuddy]` 中的平台名，非路径）；② 平台对照表（并列列出各平台真实安装路径，供用户定位自身平台）。两者不含上述"路径示例"形态时不计入失败。
+3. **垃圾文件**：不得含 `._*`、`__MACOSX`、`__pycache__`、`.DS_Store`、`.git`。
+
+> 目的：杜绝安装包跨机器/跨平台安装时，将用户误导至不存在的平台目录（如 opencode 用户见 `.codebuddy` 而找不到位置）。本条款为发布卫生硬约束，违反即错。
+
 ## 修改纪律（硬序）
 
 本文件是项目所有「需修改时先读」逻辑的总锚点入口，覆盖全部子系统，非仅质量报告。任何触及下列文件的修改，均须先 `read_file` 本文件对应段重建上下文（无对话上下文时尤其）：
