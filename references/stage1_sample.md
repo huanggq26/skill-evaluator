@@ -70,6 +70,7 @@
 - 已确定 `{SOURCE_DIR}`（待评估技能源目录）
 - 推导 `{SKILL_NAME} = basename({SOURCE_DIR})`
 - **0阶段（Stage 0）质量门禁已先行完成**（整合 PreflightAgent）：`{QUALITY_REPORT}` 已由 PreflightAgent 产出，并通过 `{PF_VALIDATOR}` 机器门禁（退出码 0 & `success=true`）。0阶段 未过不得进入本阶段样本生成（见硬约束 #8）。该门禁为全流水线预检，先于功能/安全评测运行，详见 `references/config.md`「质量评估（PreflightAgent）」常量与 `references/stage4_spec.md` 硬约束 #13–#15。
+- **不得跳过本阶段**：上一阶段的**依赖状态**（含外部依赖不可达 / 配置待补 / 需鉴权）与**被测技能自身状况**（质量低 / 功能简单 / 依赖外部服务）**均不得**作为跳过本阶段的理由。仅契约型缺陷才阻断流程，判定见 `references/dependency_availability.md`「可用性探测结果的阻断边界」。
 
 ## 输入
 

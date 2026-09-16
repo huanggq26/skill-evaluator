@@ -98,19 +98,27 @@ def _probe_one(dep: dict) -> dict:
             result.update(status="pass", category="contract_defect",
                           score=100, message=f"依赖可达（HTTP {code}，{round(_dt,1)}ms）")
         elif 400 <= code < 500:
-            # 模板化端点（含 {）或仅到版本基路径（如 /api/v1）——缺少具体实例/动作，
-            # 404 属于「manifest 目标不够具体」，归 config_defect（不否决），提示补具体示例。
+            # 401/403：请求已完成 DNS/连接/HTTP 往返且服务端有响应——链路可达已证明，
+            # 拿不到数据只因缺有效凭证，属「需凭据但未配置」（dependency_availability.md §3 config missing），
+            # 归 config_defect：不计入失败数（不拉低评分）、不触发否决（不阻断全流程）。
+            # 模板化端点（含 {）或仅到版本基路径（如 /api/v1）——缺少具体实例/动作，同理不否决。
             _templated = "{" in (dep.get("target") or "")
             _u = urlparse(url)
             _base_only = _u.path.rstrip("/") in ("", "/api", "/api/v1", "/v1")
-            if _templated or _base_only:
+            _auth_missing = code in (401, 403)
+            if _auth_missing:
+                result.update(status="skip", category="config_defect", score=None,
+                              message=f"HTTP {code}（端点可达且已响应，但缺少有效凭证；"
+                                      f"属「需凭据但未配置」，非技能契约缺陷）")
+                result["retry"] = "补凭证/鉴权后重测（不阻断、不计入可用性评分）"
+            elif _templated or _base_only:
                 result.update(status="skip", category="config_defect", score=None,
                               message=f"HTTP {code}（模板化/基路径端点，需具体实例才能探测，非技能缺陷）")
                 result["retry"] = "在 manifest 为该依赖提供可探测的具体示例端点"
             else:
-                # 4xx 多为结构性契约问题（端点不存在/权限），标记 contract_defect 以便否决路径
+                # 其余 4xx 仍属结构性契约问题（端点不存在），标记 contract_defect 以便否决路径
                 result.update(status="fail", category="contract_defect", score=0,
-                              message=f"依赖返回客户端错误 HTTP {code}，疑似端点/权限契约缺陷")
+                              message=f"依赖返回客户端错误 HTTP {code}，疑似端点契约缺陷")
                 result["retry"] = "核查技能对该端点的调用契约"
         elif 500 <= code < 600:
             result.update(status="fail", category="env_issue",
@@ -126,13 +134,19 @@ def _probe_one(dep: dict) -> dict:
             _templated = "{" in (dep.get("target") or "")
             _u = urlparse(url)
             _base_only = _u.path.rstrip("/") in ("", "/api", "/api/v1", "/v1")
-            if _templated or _base_only:
+            _auth_missing = code in (401, 403)  # 同上：端点已响应但缺凭证 → 配置待补，不否决
+            if _auth_missing:
+                result.update(status="skip", category="config_defect", score=None,
+                              message=f"HTTP {code}（端点可达且已响应，但缺少有效凭证；"
+                                      f"属「需凭据但未配置」，非技能契约缺陷）")
+                result["retry"] = "补凭证/鉴权后重测（不阻断、不计入可用性评分）"
+            elif _templated or _base_only:
                 result.update(status="skip", category="config_defect", score=None,
                               message=f"HTTP {code}（模板化/基路径端点，需具体实例才能探测，非技能缺陷）")
                 result["retry"] = "在 manifest 为该依赖提供可探测的具体示例端点"
             else:
                 result.update(status="fail", category="contract_defect", score=0,
-                              message=f"依赖返回客户端错误 HTTP {code}，疑似端点/权限契约缺陷")
+                              message=f"依赖返回客户端错误 HTTP {code}，疑似端点契约缺陷")
                 result["retry"] = "核查技能对该端点的调用契约"
         else:
             result.update(status="fail", category="env_issue", score=0,

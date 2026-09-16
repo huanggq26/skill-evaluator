@@ -337,7 +337,7 @@ print(sc["security_score"], sc["reach"]["absolute"], sc["efficiency_gain_ratio"]
 
 ## 13. 本 skill 目录结构解读
 
-装好之后，skill 目录大概长这样（以 CodeBuddy 用户级为例 `~/.codebuddy/skills/skill-evaluator/`）：
+装好之后，skill 目录大概长这样（以 `{SKILLS_HOME}/skill-evaluator/` 指代，各平台实际路径见上文对照表）：
 
 ```
 skill-evaluator/

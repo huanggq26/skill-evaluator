@@ -16,7 +16,7 @@
 
 运行本 skill 的评测脚本时，默认范围如下，**无需逐条授权**：
 
-- **读**：被测技能目录 `{SOURCE_DIR}`（如 `$HOME/.codebuddy/skills/<name>/`）——**只读**，不修改、不删除。
+- **读**：被测技能目录 `{SOURCE_DIR}`（即 `{SKILLS_HOME}/<name>/`）——**只读**，不修改、不删除。
 - **写**：仅评测工作区 `{RESULTS_ROOT}/{SKILL_NAME}/`（可用 `SKILL_EVALUATOR_RESULTS_ROOT` 整体重定向），含 `sample/ exec/ spec/ quality/`。
 - **执行**：仅本 skill 自带的 `scripts/` 下 Python 脚本，以及阶段 2/3 真实执行被测技能自身。
 - **运行环境**：本机离线；**评测器脚本不发起网络请求**（唯一例外见 §3 R-net：执行期被测技能自身向其声明端点出网属白名单，非评测器行为）。

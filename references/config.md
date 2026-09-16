@@ -26,6 +26,7 @@
 | 变量 | 值 | 说明 |
 |------|-----|------|
 | `PROJECT_ROOT` | `本 skill 安装根目录（运行时由 agent 解析为实际路径，记为 {SKILL_DIR}）` | skill 根目录（`skill-evaluator/`）；所有内部脚本/引用相对其解析。⚠️ 禁止硬编码任何机器专属物理路径（如 `/Users/<name>/...`、`C:\Users\...`） |
+| `SKILLS_HOME` | `所用 Agent 平台的用户级 skills 目录`（各平台不同，完整对照见 `USER_GUIDE.md`） | **平台中立占位**：`{SKILLS_HOME}/<name>/` 即某技能目录。因平台而异，一律用本变量指代；禁止在示例或说明中写死任一平台的具体路径（如 `~/.<platform>/skills/…` 这类形态） |
 | `REFERENCES_DIR` | `references/` | 共享规范目录 |
 | `DEFAULT_OUTPUT_DIR` | `<系统下载目录>`（macOS/Linux：`$HOME/Downloads`；Windows：`%USERPROFILE%\Downloads`） | 默认输出落点，运行时按当前机器解析；本 skill 可下载到不同机器运行，故仅以此逻辑变量表达，禁止写死物理路径 |
 | `RESULTS_ROOT` | `{DEFAULT_OUTPUT_DIR}/skill-evaluator_results` | 所有阶段输出根目录；可用环境变量 `SKILL_EVALUATOR_RESULTS_ROOT` 覆盖为任意已有输出目录（旧名 `skilltester_results`/`SKILLTESTER_RESULTS_ROOT` 已废弃） |

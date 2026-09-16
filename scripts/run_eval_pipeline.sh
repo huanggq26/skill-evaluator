@@ -478,10 +478,34 @@ run_stage4() {
 
   echo ""
   echo "=================================================="
-  echo " ✅ 最后阶段聚合完成。产物位于: $SPEC_DIR"
-  echo "   • benchmark_report.md / problem_report.md（最后阶段报告）"
-  echo "   • scores.json（机器可读）"
+  echo " ✅ 全部阶段完成（进度 5/5）——交付物清单"
+  echo ""
+  echo " 【最终交付物】"
+  echo "   • 质量评测报告：$QUALITY_REPORT"
+  echo "   • 基准评测报告：$SPEC_DIR/benchmark_report.md"
+  echo "   • 问题改进报告：$SPEC_DIR/problem_report.md"
+  echo "   • 机器可读评分：$SPEC_DIR/scores.json"
+  echo ""
+  echo " 【阶段卡点产物（流程逐级执行的证明）】"
+  echo "   • 阶段 0 预检：$QUALITY_DIR/"
+  echo "   • 阶段 1 样本：$SAMPLE_DIR/"
+  echo "   • 阶段 2/3 执行：$EXEC_DIR/"
+  echo "   • 阶段 4 聚合：$SPEC_DIR/"
   echo "=================================================="
+
+  # ── 产物断言：阶段卡点缺失即显式标注流程未完整执行（防 ERR-009 同型「约束写了不生效」）──
+  _se_missing=()
+  [[ -f "$QUALITY_REPORT" ]] || _se_missing+=("阶段0 质量评测报告（$QUALITY_REPORT）")
+  [[ -d "$SAMPLE_DIR" ]] || _se_missing+=("阶段1 样本目录（$SAMPLE_DIR）")
+  [[ -d "$EXEC_DIR" ]] || _se_missing+=("阶段2/3 执行目录（$EXEC_DIR）")
+  [[ -f "$SPEC_DIR/benchmark_report.md" ]] || _se_missing+=("阶段4 基准报告（$SPEC_DIR/benchmark_report.md）")
+  [[ -f "$SPEC_DIR/problem_report.md" ]] || _se_missing+=("阶段4 问题报告（$SPEC_DIR/problem_report.md）")
+  if [[ ${#_se_missing[@]} -gt 0 ]]; then
+    echo ""
+    echo "⚠️ 流程未完整执行——下列阶段卡点产物缺失："
+    for _m in "${_se_missing[@]}"; do echo "   ✗ $_m"; done
+    echo "   存在缺失即不得视为评测完成；请补齐缺失阶段后重跑本节（参照 runner 给出的接续命令）。"
+  fi
   # ── AI 评测执行者完成清单（ERR-014 复现实证教训：管线跑通 ≠ 评测完成）──
   # 此门禁存在的理由（ERR-009「约束已写但未激活」）：完成定义若只存在档案/记忆里，
   # 会随执行者上下文漂移而丢失；固化在 runner 尾部输出，每次交付前强制照单自查。
@@ -503,7 +527,12 @@ case "$MODE" in
     run_stage0
     echo ""
     echo "=================================================="
-    echo " ✅ 开始阶段测评完成。报告位置: $QUALITY_REPORT"
+    echo " ✅ 开始阶段测评完成（进度 1/5：本次仅完成阶段 0 预检，阶段 1→4 尚未执行）"
+    echo "   报告位置: $QUALITY_REPORT"
+    echo ""
+    echo " ▶ 下一步（继续全流程，补全阶段 1→4）："
+    echo "   bash scripts/run_eval_pipeline.sh --mode resume --skill-dir '$TARGET_SKILL'"
+    echo "   注：若你要的是「全面 / 全流程评测」，直接改用 --mode full 即可一路跑至阶段 4，无需在此停顿。"
     echo "=================================================="
     ;;
   full)
@@ -526,12 +555,20 @@ case "$MODE" in
     # full 模式下，run_stage4 会自动真实驱动阶段 2/3/5（联网调被测技能声明端点）；
     # 仅当被测技能不可达等真实失败时 exit 1 报错（不再静默停等人工）。
     run_stage4
+    # 产物断言：最终报告未生成 ⇒ 评测未完成，不得静默结束（_ERR-009 同型「约束写了不生效」）
+    if [[ ! -f "$SPEC_DIR/benchmark_report.md" || ! -f "$SPEC_DIR/problem_report.md" ]]; then
+      echo "" >&2
+      echo "⛔ 全流程未产出最终报告 —— 评测未完成，不得按成功交付。" >&2
+      echo "   缺失产物：$SPEC_DIR/benchmark_report.md 与/或 $SPEC_DIR/problem_report.md" >&2
+      echo "   请先看上述「AI 评测执行者接续指引」补齐阶段 2/3，再运行：" >&2
+      echo "     bash scripts/run_eval_pipeline.sh --mode resume --skill-dir '$TARGET_SKILL'" >&2
+      exit 1
+    fi
     echo ""
     echo "=================================================="
-    echo " ✅ 全流程测评请求已发起。"
+    echo " ✅ 全流程测评完成（阶段 1→4 已执行）。"
+    echo "   • 交付物清单见上方「阶段卡点产物」段（含各产物绝对路径）"
     echo "   • 开始阶段报告: $QUALITY_REPORT"
-    echo "   • 若最后阶段报告未生成，请按上方「AI 评测执行者接续指引」完成阶段 2/3，"
-    echo "     再运行: bash scripts/run_eval_pipeline.sh --mode resume"
     echo "=================================================="
     ;;
   resume)
