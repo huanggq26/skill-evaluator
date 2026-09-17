@@ -41,7 +41,7 @@
 
 | 用户想了解 | 提供文档（相对路径） | 说明 |
 |---|---|---|
-| **这套评测体系的设计思路 / 原理** | `references/skill-evaluation-system.md` | 原理讲解：四个角度、三大深度评测、AI 与程序双线协作、可进化闭环；**含概念图，适合阅读器打开** |
+| **这套评测体系的设计思路 / 原理** | `references/skill-evaluation-system.md` | 原理讲解：五个评测面、四大深度评测、AI 与程序双线协作、可进化闭环；**含概念图，适合阅读器打开** |
 | **怎么使用这个评测技能** | `references/USER_GUIDE.md` | 使用者指南（人话版）：怎么触发、三份产物受众、怎么读结果、常见问题 |
 | **范围与安全边界** | `references/scope_contract.md` | 授权模型（范围授权 vs 逐命令授权） |
 | **某阶段的详细流程** | `references/stage0_preflight.md` / `stage1_sample.md` / … | 按阶段号选对应文档 |

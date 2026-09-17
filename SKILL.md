@@ -350,7 +350,7 @@ platforms: [linux, macos, windows]
 ## References 索引
 
 - `references/USER_GUIDE.md` — **使用者指南（人话版）**：这是什么 / 怎么触发 / 三份产物受众区分 / 怎么跑与读结果 / 手工维护脚本 / 目录结构 / 跨平台安装 / 常见问题
-- `references/skill-evaluation-system.md` — **体系原理讲解（概念层）**：为什么体系化评测 / 四个角度 / 三大深度评测（可用性 · 性能 · 安全）原理 / AI 与程序双线协作 / 五类产物角度 / 可进化闭环 / 总概念图。**定位**：原理讲解**非实现规范**，冲突以 `SKILL.md` 与 `scripts/` 源码为准（原理文档不覆盖实现）；用户问"设计思路/原理"时提供（含概念图，适合阅读器打开）
+- `references/skill-evaluation-system.md` — **体系原理讲解（概念层）**：为什么体系化评测 / 五个评测面 / 四大深度评测（可用性 · 功能 · 性能 · 安全）原理 / AI 与程序双线协作 / 四类产物角度 / 可进化闭环 / 总概念图。**定位**：原理讲解**非实现规范**，冲突以 `SKILL.md` 与 `scripts/` 源码为准（原理文档不覆盖实现）；用户问"设计思路/原理"时提供（含概念图，适合阅读器打开）
 - `references/config.md` — 跨阶段路径、变量、常量（含 `PF_*` / `QUALITY_REPORT`）
 - `references/stage0_preflight.md` — 阶段 0 质量预检全流程
 - `references/dependency_availability.md` — **可用性探测（DEP-AVAIL）执行规格**：D1–D6 checker + category 裁决 + 依赖提取器（DEP-EXTRACT）规则。**改动前置（仅本技能作用域）**：修改 `scripts/dep_probe.py` / `scripts/extract_deps.py` / `run_eval_pipeline.sh` 的阶段 0B 步骤前，必须先 `read_file` 本规格并与之保持一致，未读不得改探测行为。
