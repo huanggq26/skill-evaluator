@@ -32,3 +32,8 @@
 - `2026-10-10 19:36:24` | `scripts/surface_tagging.py` | set(5 处) | ✅ 非空行 144 → 171，体积 5803 → 7089；备份 surface_tagging-pre-set-20261010-193624.py
 - `2026-10-10 19:39:13` | `openspec/changes/2026-10-10-surface-tag-scan-exclusion/tasks.md` | set(2 处) | ✅ 非空行 21 → 22，体积 848 → 1517；备份 tasks-pre-set-20261010-193913.md
 - `2026-10-10 19:39:44` | `openspec/changes/2026-10-10-surface-tag-scan-exclusion/proposal.md` | set(1 处) | ✅ 非空行 23 → 23，体积 1497 → 1864；备份 proposal-pre-set-20261010-193944.md
+- `2026-10-11 20:05:17` | `/Users/family/Downloads/攻击面标签体系改造方案_2026-10-10.md` | set(5 处) | ✅ 非空行 576 → 590，体积 27283 → 28146；备份 攻击面标签体系改造方案_2026-10-10-pre-set-20261011-200517.md
+- `2026-10-11 20:05:17` | `/Users/family/Downloads/运行时能力观测项目策略_2026-10-10.md` | set(8 处) | ✅ 非空行 389 → 396，体积 16196 → 17596；备份 运行时能力观测项目策略_2026-10-10-pre-set-20261011-200517.md
+- `2026-10-11 20:05:45` | `openspec/changes/2026-10-10-attack-surface-tag-system-refactor/tasks.md` | set(3 处) | ✅ 非空行 35 → 35，体积 1969 → 2248；备份 tasks-pre-set-20261011-200545.md
+- `2026-10-11 20:05:45` | `openspec/changes/2026-10-10-runtime-capability-observation/tasks.md` | set(4 处) | ✅ 非空行 37 → 37，体积 1774 → 2299；备份 tasks-pre-set-20261011-200545.md
+- `2026-10-11 20:07:53` | `/Users/family/Library/Mobile Documents/com~apple~CloudDocs/Agent/skill-evaluator_risk-assessment-explainer.md` | set(6 处) | ✅ 非空行 808 → 830，体积 42191 → 45148；备份 skill-evaluator_risk-assessment-explainer-pre-set-20261011-200753.md
