@@ -1,0 +1,63 @@
+{
+  "purpose": "held-out 留出集：不参与任何口径讨论，用于无偏检验标签判别力（kappa >= 0.8 才算真通过）",
+  "locked_at": "2026-10-12",
+  "sampling_rule": "技能源按名称排序遍历，每个主域首次出现者取 1 个，取满 5 个域即止（确定性、无人工挑选）；已排除 15 个主样本与 4 个补样",
+  "excluded_names": [
+    "agent-team-orchestration",
+    "andonq",
+    "capability-evolver",
+    "cloudbase",
+    "content-factory",
+    "deep-research",
+    "ecommerce-copywriter",
+    "fullstack-dev",
+    "kdocs",
+    "leader",
+    "libtv-skill",
+    "lingxi-financialsearch-skill",
+    "minimax-pdf",
+    "react-native-dev",
+    "smooth-browser",
+    "stock-analyzer",
+    "tencent-musician-skills",
+    "tencentcloud-cos",
+    "web-search-exa"
+  ],
+  "skills": [
+    {
+      "name": "12306",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/12306",
+      "lang": "en",
+      "has_scripts": true,
+      "primary": "data"
+    },
+    {
+      "name": "academic-tutor",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/academic-tutor",
+      "lang": "zh",
+      "has_scripts": true,
+      "primary": "gen"
+    },
+    {
+      "name": "agent-browser-core",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/agent-browser-core",
+      "lang": "en",
+      "has_scripts": false,
+      "primary": "web"
+    },
+    {
+      "name": "agent-mbti",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/agent-mbti",
+      "lang": "zh",
+      "has_scripts": false,
+      "primary": "dev"
+    },
+    {
+      "name": "baidu-drive",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/baidu-drive",
+      "lang": "zh",
+      "has_scripts": true,
+      "primary": "sys"
+    }
+  ]
+}

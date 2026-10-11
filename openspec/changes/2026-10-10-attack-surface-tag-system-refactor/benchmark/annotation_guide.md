@@ -114,6 +114,23 @@ kappa 数学上归零（kappa 悖论）。这恰恰坐实了**宽窄两套口径
 9. **深层证据链仍然算**：证据需跨文件传递时（如 `palette.py` 硬编码域名 → `cover.py` 写 `@import` →
 `render_cover.js` 真实拉取），**链条完整即 yes**，不得因"层级深"判 no。
 
+**v3 补丁（2026-10-12 · 主样本 kappa=0.8063 后的剩余分歧裁定）**
+
+主样本在 v2 下 kappa 升至 0.8063，但**该值已被污染**（A 重标时已知 B 的切分），只作过程指标。
+剩余 16 项分歧的方向统计显示：**除 `prompt_intent` 双向对立外，9 项均为「A 严 B 宽」**——属系统性宽严差，可逐条裁定：
+
+| # | 裁定 | 依据 |
+|---|---|---|
+| 10 | **产出物不算 `state_persist`**：报告 / 文档 / 生成物一律 no，除非 SKILL.md 明示"下次读取 / 继续 / 跨会话生效" | 分歧 3 项全为 A=no B=yes（deep-research / kdocs / lingxi） |
+| 11 | **指导型技能不算 `exec_code`**：教人写代码、教模型实现、无 scripts 且未指示运行 → no。**只有"指示运行某脚本 / 命令"才 yes** | 分歧 2 项全为 A=no B=yes（deep-research / react-native-dev） |
+| 12 | **`agent_comms` 需明示** spawn / 子会话 / 多 agent 编排；"并行检索""浏览器自动化""名字里带 agent"都不算 | 分歧 2 项全为 A=no B=yes（deep-research / smooth-browser） |
+| 13 | **`external_dep` 需明示安装**（`npm install` / `pip install` / `requirements.txt` / 自动装 SDK）；"可能有运行时依赖"不算 | 分歧 2 项全为 A=no B=yes（kdocs / tencent-musician-skills） |
+| 14 | **`user_content`：用户提供的文件 / 文档 / 网页被加工 → yes；用户的创作要求 / 指令文本 → no** | 分歧 2 项为 A=yes B=no（tencentcloud-cos 属前者 → yes；libtv 属后者 → no） |
+| 15 | **`prompt_intent`：外部输入进入自然语言指令串（提示词 / 查询描述 / 生成描述）→ yes；进入结构化字段 / 参数（ID、字段名、枚举、表单字段）→ no** | 唯一**双向对立**标签（A=yes B=no 与 A=no B=yes 各 2 项），说明 v2 的"模板+占位符"判据双方解读相反，须换成"字符串性质"判据 |
+
+> v3 只在 **held-out 留出集**上验证：主样本不再回头修改（继续改会持续放大污染）。
+> 留出集 kappa ≥ 0.8 才算**真通过**；主样本 kappa 只回答"口径是否已统一"。
+
 ## 双人独立标注流程（硬性）
 
 1. 两人**各自独立**标注同一批样本，**标注期间不得交流、不得看对方文件**；
