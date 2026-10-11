@@ -22,6 +22,18 @@
       - 验收：15 个技能 × 11 标签 = **165 个判定全部填满**（无 `null`）；**B 面标注期间未读取 `truth_a.json`、未读取 `surface_tagging.py` 输出**；完成后跑 `scripts/benchmark_agreement.py` 得 kappa ≥ 0.8
       - 独立性硬约束：B 必须在**全新会话**执行；同会话连做 A 与 B 会使 kappa 退化为自证
 
+- [x] **#1-d** 首轮一致性度量（2026-10-12）——**未通过，已触发规程修订**
+      - 实测：**Cohen's kappa = 0.4944**（< 0.8 准入线）；165 对判定中 **40 项分歧（24%）**；`unsure` 7 项（A 面 5 + B 面 0）
+      - 逐标签 kappa：`net_egress` 0.815（唯一达标）；`external_dep` 0.698、`cred_access` 0.602、`fs_access` 0.588；`state_persist` 0.222、`exec_code` 0.189、`prompt_intent` 0.071；**`user_content` / `tool_calls` / `agent_comms` / `system_instruction` 均为 0.0**
+      - **诊断：不是随机噪声，是系统性口径分歧**。4 个 kappa=0 的标签均为"一方把该标签全部标成同一值"所致（kappa 悖论：`pe` 追平 `po`）——坐实 A 用宽口径、B 用窄口径两套标准并存
+      - 处置（按规程：**改规程、不改标注结果**）：已发布**判定口径 v2**（见 `annotation_guide.md`），采纳 B 面切分 + 新增边界裁定 6–9；**A 面须按 v2 全量重标**
+
+- [ ] **#1-e** 按 v2 重标与无偏留出检验
+      - 锚点：`benchmark/truth_a.json`（重标）、`benchmark/annotation_guide.md` 口径 v2
+      - 验收：① A 面按 v2 重标 **15 个主样本 + 4 个补样**；② B 面标注 **4 个补样**（主样本已按 v2 口径完成，不需重标）；③ 增设 **held-out 留出集 ≥ 5 个技能**（不参与任何口径讨论），由 A/B 各自独立标注，用其 kappa 作为**无偏判别力**验收
+      - **为什么必须留留出集**：主样本的 kappa 会**因口径统一而虚高**（A 重标时已知 v2 与 B 的切分），不能作为判别力证据；只有从未参与口径讨论的留出集 kappa ≥ 0.8，才说明标签语义真的清楚
+      - 硬约束：重标**不得**参考 B 面具体结果（只能依据 v2 规程文字），否则一致性是被抄出来的
+
 - [ ] **#1-c** 样本平衡补样与标签区分度复核
       - 锚点：`benchmark/benchmark_set.json`；`scripts/build_benchmark_set.py`（新增平衡约束）
       - 验收：① 补入 **≥ 3 个 `agent_comms` 阳性**，使每个标签的**阳性数 ≥ 3 且阴性数 ≥ 3**；② 对 `user_content` / `tool_calls` 出具"是否收窄定义"的裁决意见（15/15 说明其当前定义过宽，等同于恒真）；③ 对 `system_instruction` 的处置出具裁决（见下）

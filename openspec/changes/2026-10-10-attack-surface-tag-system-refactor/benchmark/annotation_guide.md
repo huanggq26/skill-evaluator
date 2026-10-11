@@ -77,6 +77,43 @@
 
 > 首轮实测：`agent_comms` 0/15、`system_instruction` 0/15（无阳性）；`user_content` 15/15、`tool_calls` 15/15（全阳性）。
 
+## 判定口径 v2（2026-10-12 修订 · 强制）
+
+**修订缘由**：首轮 A/B 一致性 **Cohen's kappa = 0.4944 < 0.8**，165 对判定中 **40 项分歧（24%）**。
+分歧**不是随机噪声，而是系统性口径分歧**——表现为 4 个标签的 kappa 恒为 0.0
+（`user_content` / `tool_calls` / `agent_comms` / `system_instruction`）：
+当一方把某标签**全部标成同一值**时，kappa 的期望一致率 `pe` 会追平观察一致率 `po`，
+kappa 数学上归零（kappa 悖论）。这恰恰坐实了**宽窄两套口径并存**，必须统一口径后重标。
+
+**逐标签 kappa（升序，越低越含糊）**：`user_content` 0.0、`tool_calls` 0.0、`agent_comms` 0.0、
+`system_instruction` 0.0、`prompt_intent` 0.071、`exec_code` 0.189、`state_persist` 0.222、
+`fs_access` 0.588、`cred_access` 0.602、`external_dep` 0.698、**`net_egress` 0.815（唯一达标）**。
+
+**v2 判定式（本轮起强制，A/B 双方统一适用）**
+
+| 标签 | v2 判定式 |
+|---|---|
+| `user_content` | 用户提供的**内容**（文本/文档/网页）被当成**加工原料** → yes；用户给的**请求/标识/查询词**被当参数**转发** → no。判据口诀：**"输入是被检索的键，还是被改写的料"** |
+| `tool_calls` | 专指**结构化工具 / 函数调用**（MCP tool、function calling、`read_file`/`write_to_file`/`execute_command` 等具名工具）；与 `exec_code`（自由 shell / 脚本执行）拉开距离 |
+| `prompt_intent` | 需存在**模板 + 占位符**并由外部输入填槽；把用户输入原样作为 API 参数传递 → no |
+| `external_dep` | = **需要安装**第三方包 / SDK / 插件 / MCP server。远程 API 调用归入 `net_egress`，**不算** `external_dep` |
+| `state_persist` | 写入**机器可读、且被技能在后续会话回读**的状态（token 缓存、版本缓存、断点续传标记、memory 文件、浏览器 profile）；一次性产出物 → no |
+| `net_egress` | `curl localhost` / 本地回环 → no；`pip install` / `npm install` 归入 `external_dep`，不算主动外联 |
+| `cred_access` | 主体是**技能自身运行时**读取凭证。**"教人在配置里填密钥"或"引导人扫码登录" → no**（边界裁定 6 扩展到凭证）：那是对**人**的动作 |
+| `agent_comms` | 需出现 spawn / 子会话 / 多 agent 编排；单次调用一个 API 不算，与后端 Agent 的一次接口交互也不算 |
+| `system_instruction` | 仅当明确指示**写入** AGENTS.md / system prompt / 长期记忆规则；写记忆文件本身另计 `state_persist` |
+| `exec_code` | 技能**自身运行时**执行代码 / shell / 脚本；文档里让用户执行的安装配置命令 → no（边界裁定 6）。**"SKILL.md 未指示运行、且脚本非完成职责的必要条件" → no** |
+| `fs_access` | 读写本机文件（含要求写 `/tmp`、读用户文件）；仅 `print` 到 stdout → no |
+
+**v2 新增边界裁定**
+
+6. **给人做的动作不算**（已扩展到凭证与安装）：文档里让用户执行 `openclaw mcp add`、让用户填 API key、
+引导用户登录第三方站点 —— 都是对**人**的动作，技能自身运行时并未执行/读取 → 一律 `no`。
+7. **可选能力不算**：能力仅在**可选项**中提供（如 `--persist` 写 `.env`，默认为 ephemeral）→ `no`。
+8. **可选依赖不算**：依赖存在**回退路径**且技能声明"纯 X 实现"（如首选 `requests`、回退 CLI）→ `external_dep` = `no`。
+9. **深层证据链仍然算**：证据需跨文件传递时（如 `palette.py` 硬编码域名 → `cover.py` 写 `@import` →
+`render_cover.js` 真实拉取），**链条完整即 yes**，不得因"层级深"判 no。
+
 ## 双人独立标注流程（硬性）
 
 1. 两人**各自独立**标注同一批样本，**标注期间不得交流、不得看对方文件**；

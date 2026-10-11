@@ -1,0 +1,267 @@
+{
+  "skills_compared": 15,
+  "only_in_a": [],
+  "only_in_b": [],
+  "judgements_total": 165,
+  "unsure_pairs": 7,
+  "unsure_ratio": 0.0424,
+  "kappa_overall": 0.4944,
+  "kappa_per_tag": {
+    "exec_code": 0.1892,
+    "external_dep": 0.6977,
+    "fs_access": 0.5882,
+    "net_egress": 0.8148,
+    "cred_access": 0.6018,
+    "state_persist": 0.2222,
+    "user_content": 0.0,
+    "agent_comms": 0.0,
+    "prompt_intent": 0.0714,
+    "tool_calls": 0.0,
+    "system_instruction": 0.0
+  },
+  "disagreements": [
+    {
+      "skill": "andonq",
+      "tag": "user_content",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "andonq",
+      "tag": "prompt_intent",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "cloudbase",
+      "tag": "cred_access",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "cloudbase",
+      "tag": "state_persist",
+      "a": "no",
+      "b": "yes"
+    },
+    {
+      "skill": "cloudbase",
+      "tag": "user_content",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "cloudbase",
+      "tag": "system_instruction",
+      "a": "no",
+      "b": "yes"
+    },
+    {
+      "skill": "deep-research",
+      "tag": "exec_code",
+      "a": "no",
+      "b": "yes"
+    },
+    {
+      "skill": "deep-research",
+      "tag": "state_persist",
+      "a": "no",
+      "b": "yes"
+    },
+    {
+      "skill": "deep-research",
+      "tag": "user_content",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "ecommerce-copywriter",
+      "tag": "exec_code",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "ecommerce-copywriter",
+      "tag": "prompt_intent",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "ecommerce-copywriter",
+      "tag": "tool_calls",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "fullstack-dev",
+      "tag": "user_content",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "kdocs",
+      "tag": "prompt_intent",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "libtv-skill",
+      "tag": "user_content",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "libtv-skill",
+      "tag": "prompt_intent",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "lingxi-financialsearch-skill",
+      "tag": "exec_code",
+      "a": "no",
+      "b": "yes"
+    },
+    {
+      "skill": "lingxi-financialsearch-skill",
+      "tag": "fs_access",
+      "a": "no",
+      "b": "yes"
+    },
+    {
+      "skill": "lingxi-financialsearch-skill",
+      "tag": "cred_access",
+      "a": "no",
+      "b": "yes"
+    },
+    {
+      "skill": "lingxi-financialsearch-skill",
+      "tag": "state_persist",
+      "a": "no",
+      "b": "yes"
+    },
+    {
+      "skill": "lingxi-financialsearch-skill",
+      "tag": "user_content",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "lingxi-financialsearch-skill",
+      "tag": "prompt_intent",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "minimax-pdf",
+      "tag": "net_egress",
+      "a": "no",
+      "b": "yes"
+    },
+    {
+      "skill": "minimax-pdf",
+      "tag": "prompt_intent",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "react-native-dev",
+      "tag": "user_content",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "smooth-browser",
+      "tag": "exec_code",
+      "a": "no",
+      "b": "yes"
+    },
+    {
+      "skill": "smooth-browser",
+      "tag": "external_dep",
+      "a": "no",
+      "b": "yes"
+    },
+    {
+      "skill": "smooth-browser",
+      "tag": "fs_access",
+      "a": "no",
+      "b": "yes"
+    },
+    {
+      "skill": "smooth-browser",
+      "tag": "state_persist",
+      "a": "no",
+      "b": "yes"
+    },
+    {
+      "skill": "smooth-browser",
+      "tag": "user_content",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "smooth-browser",
+      "tag": "agent_comms",
+      "a": "no",
+      "b": "yes"
+    },
+    {
+      "skill": "stock-analyzer",
+      "tag": "state_persist",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "stock-analyzer",
+      "tag": "user_content",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "stock-analyzer",
+      "tag": "prompt_intent",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "tencent-musician-skills",
+      "tag": "external_dep",
+      "a": "no",
+      "b": "yes"
+    },
+    {
+      "skill": "tencent-musician-skills",
+      "tag": "user_content",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "tencent-musician-skills",
+      "tag": "prompt_intent",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "tencentcloud-cos",
+      "tag": "user_content",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "web-search-exa",
+      "tag": "cred_access",
+      "a": "yes",
+      "b": "no"
+    },
+    {
+      "skill": "web-search-exa",
+      "tag": "user_content",
+      "a": "yes",
+      "b": "no"
+    }
+  ],
+  "min_kappa": 0.8,
+  "pass": false,
+  "merged_output": "openspec/changes/2026-10-10-attack-surface-tag-system-refactor/benchmark/truth_merged.json"
+}
