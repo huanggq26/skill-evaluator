@@ -17,10 +17,17 @@
       - **分布暴露两个必须处置的问题**：① `agent_comms` / `system_instruction` **无阳性样本** → 这两个标签的**召回率无法度量**（没有可召回的阳性），且扫描器一旦打出 yes 精确率必为 0；② `user_content` / `tool_calls` **15/15 恒真** → 对准入无区分度，与 U4 判定的"映射恒真即冗余"同理，须在标签集重构时重新审视其定义边界
       - 硬约束：标注期间**不得参考** `surface_tagging.py` 的输出（否则真值与被测对象耦合，召回率失去意义）
 
+- [ ] **#1-b** 标注者 B 独立全量标注
+      - 锚点：`benchmark/annotator_b_brief.md`（可直接粘贴给新会话的任务书）；`benchmark/truth_b.json`
+      - 验收：15 个技能 × 11 标签 = **165 个判定全部填满**（无 `null`）；**B 面标注期间未读取 `truth_a.json`、未读取 `surface_tagging.py` 输出**；完成后跑 `scripts/benchmark_agreement.py` 得 kappa ≥ 0.8
+      - 独立性硬约束：B 必须在**全新会话**执行；同会话连做 A 与 B 会使 kappa 退化为自证
+
 - [ ] **#1-c** 样本平衡补样与标签区分度复核
       - 锚点：`benchmark/benchmark_set.json`；`scripts/build_benchmark_set.py`（新增平衡约束）
-      - 验收：① 补入 **≥ 3 个 `agent_comms` 阳性**与 **≥ 3 个 `system_instruction` 阳性**样本（从 295 个候选中定向检索，如多 agent 编排 / 子会话 / 改写系统指令类技能），使每个标签的**阳性数 ≥ 3 且阴性数 ≥ 3**；② 对 `user_content` / `tool_calls` 出具"是否收窄定义"的裁决意见（15/15 说明其当前定义过宽，等同于恒真）
+      - 验收：① 补入 **≥ 3 个 `agent_comms` 阳性**，使每个标签的**阳性数 ≥ 3 且阴性数 ≥ 3**；② 对 `user_content` / `tool_calls` 出具"是否收窄定义"的裁决意见（15/15 说明其当前定义过宽，等同于恒真）；③ 对 `system_instruction` 的处置出具裁决（见下）
       - 硬约束：补样**不得**以 A 面标注作为筛选真值（会与真值耦合）；只能按"描述中明确出现多 agent / 系统指令"等**客观检索式**定向取样
+      - **补样已完成（`benchmark/supplement_set.json`）**：定向检索得 `agent_comms` 候选 37 个，核验后取 **4 个**——`agent-team-orchestration`（多 agent 团队编排 + 交接协议）、`content-factory`（五个 agent persona + `spawn separate sub-agents`）、`leader`（内置技能，"把活分给几个 agent 并行"）、`capability-evolver`（经 Proxy mailbox 与 hub 通信，**边缘，待 B 面裁定**）
+      - **`system_instruction` 零阳性是分布事实，不是抽样失误**：295 个技能按"system prompt / 忽略先前 / 改写指令"检索仅 **2 个**候选，且核验后二者均为**产出提示词文本给人用**（`prompt-engineering-expert` 设计 system prompts、`novel-writer` 构建 LLM 提示词），**不是技能自身写入/改写系统级指令** → 按现口径均应为 no，即本池 **0 真阳性**。三个处置选项待裁决：① 与 `prompt_intent` 合并（前者可视作后者的极端形态）；② 改用定向构造样本度量召回率；③ 保留标签但在报告标注"真实分布罕见，召回率未经实测"
 
 - [ ] **#2** 词形字典与概念层改造
       - 锚点：`scripts/surface_tagging.py` `_SURFACE_TAGS`；改造方案文档「词形扩展方法」
