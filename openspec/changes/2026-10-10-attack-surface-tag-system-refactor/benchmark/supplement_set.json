@@ -1,0 +1,56 @@
+{
+  "purpose": "样本平衡补样：修复首轮 15 个样本中 agent_comms / system_instruction 零阳性导致的度量失效",
+  "method": "按客观检索式定向取样（多 agent 编排 / spawn sub-agent / mailbox 通信），**未使用 A 面标注作为筛选器**",
+  "source": [
+    "/Users/family/.codebuddy/skills-marketplace/skills",
+    "/Users/family/.codebuddy/skills"
+  ],
+  "added": [
+    {
+      "name": "agent-team-orchestration",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/agent-team-orchestration",
+      "expected_positive": [
+        "agent_comms"
+      ],
+      "evidence": "description: multi-agent teams / handoff protocols / async communication between agents"
+    },
+    {
+      "name": "content-factory",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/content-factory",
+      "expected_positive": [
+        "agent_comms"
+      ],
+      "evidence": "Five specialized agent personas + 'spawn separate sub-agents for each role'"
+    },
+    {
+      "name": "leader",
+      "path": "/Users/family/.codebuddy/skills/leader",
+      "expected_positive": [
+        "agent_comms"
+      ],
+      "evidence": "description: 把活分给几个 agent 并行"
+    },
+    {
+      "name": "capability-evolver",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/capability-evolver",
+      "expected_positive": [
+        "agent_comms"
+      ],
+      "evidence": "Communicates with EvoMap Hub via local Proxy mailbox（边缘：与外部 hub 而非 agent 间，待 B 面裁定）"
+    }
+  ],
+  "system_instruction": {
+    "candidates_found": 2,
+    "candidates": [
+      "prompt-engineering-expert（设计 system prompts / custom instructions）",
+      "novel-writer（构建 LLM 提示词）"
+    ],
+    "verdict": "两者均为**产出提示词文本给人用**，不是技能自身写入/改写系统级指令 → 按现口径均应为 no，即**本池 0 真阳性**",
+    "options": [
+      "与 prompt_intent 合并（system_instruction 可视作前者的极端形态）",
+      "改用定向构造样本（synthetic）度量其召回率",
+      "保留标签但在报告中标注'真实分布罕见，召回率未经实测'"
+    ],
+    "status": "待裁决"
+  }
+}
