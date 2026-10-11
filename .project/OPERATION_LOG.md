@@ -40,3 +40,4 @@
 - `2026-10-11 20:52:49` | `/Users/family/.codebuddy/skills/skill-evaluator/openspec/changes/2026-10-10-runtime-capability-observation/tasks.md` | set(3 处) | ✅ 非空行 37 → 38，体积 2299 → 2624；备份 tasks-pre-set-20261011-205249.md
 - `2026-10-11 20:52:49` | `/Users/family/Downloads/运行时能力观测项目策略_2026-10-10.md` | set(1 处) | ✅ 非空行 396 → 396，体积 17596 → 17667；备份 运行时能力观测项目策略_2026-10-10-pre-set-20261011-205249.md
 - `2026-10-11 20:52:49` | `/Users/family/Library/Mobile Documents/com~apple~CloudDocs/Agent/skill-evaluator_risk-assessment-explainer.md` | set(2 处) | ✅ 非空行 830 → 831，体积 45148 → 45310；备份 skill-evaluator_risk-assessment-explainer-pre-set-20261011-205249.md
+- `2026-10-11 21:22:23` | `openspec/changes/2026-10-10-attack-surface-tag-system-refactor/tasks.md` | set(2 处) | ✅ 非空行 35 → 41，体积 2248 → 3133；备份 tasks-pre-set-20261011-212223.md

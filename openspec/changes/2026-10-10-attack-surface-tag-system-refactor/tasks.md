@@ -1,12 +1,19 @@
 ## 1. 已实施
 
-（无——本变更为立项阶段，尚未启动实施）
+- [x] **#1-a** 基准集抽样与标注基础设施（2026-10-11）
+      - 锚点：新增 `scripts/build_benchmark_set.py`（分层抽样）、`scripts/benchmark_agreement.py`（Cohen's kappa + 真值合并）；`benchmark/annotation_guide.md`（标注规程）、`benchmark/benchmark_set.json`（15 个样本清单）、`benchmark/truth_a.json` / `truth_b.json`（标注骨架）
+      - 实测：**15 个**已从 295 个候选中抽出，`scripts/` 8 / 英文 6 / 中文 9 / 六域 doc3 data3 web3 dev2 gen2 sys2 —— 约束全部达成
+      - **分层维度改过两版才可用**（教训留档）：① 按"是否命中能力面"分层 → 退化（几乎全部技能命中全部类，样本全阳性、无阴性，精确率无法计算）；② 按 SKILL.md 开头 1200 字判域 → 仍退化；③ 最终按 frontmatter `description` 的**命中分取主域** + 两阶段选择（先按域保底、再补语言 / scripts）→ 区分度成立
+      - 试点标注完成 **3 / 15**（kdocs、web-search-exa、stock-analyzer），暴露两处规程待明确项（`prompt_intent` 是否含"请求参数拼接"、`external_dep` 对 node 类依赖的判定），已在 note 中记录为 `unsure`
+
 
 ## 2. 待实施
 
 - [ ] **#1** 基准集建设（**前置项，后续各项的度量基础**）
       - 锚点：`SAMPLE_ROOT`（现有 6 个异质技能）；改造方案文档「基准集与普遍性设计」
       - 验收（**U6 已裁决 2026-10-11**）：**两批推进**。第一批 **15 个**：含 `scripts/` ≥ 8、纯英文 ≥ 5、纯中文 ≥ 5、6 类能力面每类 ≥ 2；双人独立标注 + Cohen's kappa **≥ 0.8**（< 0.8 须先对齐标注规程再重标）；第二批扩至 30 收窄置信区间。来源 = `skills-marketplace/skills/`（实测 295 个 / 124 个含 `scripts/`），**不含**历史已评测技能
+      - 进度：抽样与基础设施已完成（见 #1-a）；**剩余** = 标注者 A 全量 15 个 + 标注者 B 独立全量 15 个 + kappa ≥ 0.8 裁定 + 合并 `truth.json`
+      - 硬约束：标注期间**不得参考** `surface_tagging.py` 的输出（否则真值与被测对象耦合，召回率失去意义）
 
 - [ ] **#2** 词形字典与概念层改造
       - 锚点：`scripts/surface_tagging.py` `_SURFACE_TAGS`；改造方案文档「词形扩展方法」

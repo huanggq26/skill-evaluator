@@ -1,0 +1,270 @@
+{
+  "generated_at": "2026-10-11 21:17:25",
+  "source": "/Users/family/.codebuddy/skills-marketplace/skills",
+  "candidates": 295,
+  "constraints": {
+    "n": 15,
+    "min_scripts": 8,
+    "min_en": 5,
+    "min_zh": 5,
+    "min_per_class": 2
+  },
+  "check": {
+    "n": 15,
+    "has_scripts": 8,
+    "en": 6,
+    "zh": 9,
+    "per_class": {
+      "doc": 3,
+      "data": 3,
+      "web": 3,
+      "dev": 2,
+      "gen": 2,
+      "sys": 2
+    },
+    "ok": true
+  },
+  "selected": [
+    {
+      "name": "kdocs",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/kdocs",
+      "lang": "zh",
+      "has_scripts": true,
+      "primary": "doc",
+      "class_scores": {
+        "doc": 21,
+        "data": 0,
+        "web": 2,
+        "dev": 0,
+        "gen": 3,
+        "sys": 4
+      },
+      "zh_ratio": 0.1759
+    },
+    {
+      "name": "minimax-pdf",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/minimax-pdf",
+      "lang": "en",
+      "has_scripts": true,
+      "primary": "doc",
+      "class_scores": {
+        "doc": 14,
+        "data": 0,
+        "web": 0,
+        "dev": 0,
+        "gen": 2,
+        "sys": 0
+      },
+      "zh_ratio": 0.0001
+    },
+    {
+      "name": "tencent-musician-skills",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/tencent-musician-skills",
+      "lang": "zh",
+      "has_scripts": true,
+      "primary": "data",
+      "class_scores": {
+        "doc": 0,
+        "data": 19,
+        "web": 1,
+        "dev": 0,
+        "gen": 0,
+        "sys": 0
+      },
+      "zh_ratio": 0.1564
+    },
+    {
+      "name": "stock-analyzer",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/stock-analyzer",
+      "lang": "zh",
+      "has_scripts": true,
+      "primary": "data",
+      "class_scores": {
+        "doc": 0,
+        "data": 15,
+        "web": 0,
+        "dev": 1,
+        "gen": 0,
+        "sys": 0
+      },
+      "zh_ratio": 0.247
+    },
+    {
+      "name": "deep-research",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/deep-research",
+      "lang": "zh",
+      "has_scripts": false,
+      "primary": "web",
+      "class_scores": {
+        "doc": 1,
+        "data": 2,
+        "web": 14,
+        "dev": 0,
+        "gen": 0,
+        "sys": 0
+      },
+      "zh_ratio": 0.0976
+    },
+    {
+      "name": "web-search-exa",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/web-search-exa",
+      "lang": "en",
+      "has_scripts": false,
+      "primary": "web",
+      "class_scores": {
+        "doc": 0,
+        "data": 0,
+        "web": 14,
+        "dev": 2,
+        "gen": 3,
+        "sys": 0
+      },
+      "zh_ratio": 0.0023
+    },
+    {
+      "name": "fullstack-dev",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/fullstack-dev",
+      "lang": "en",
+      "has_scripts": false,
+      "primary": "dev",
+      "class_scores": {
+        "doc": 0,
+        "data": 1,
+        "web": 1,
+        "dev": 8,
+        "gen": 0,
+        "sys": 0
+      },
+      "zh_ratio": 0.0006
+    },
+    {
+      "name": "react-native-dev",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/react-native-dev",
+      "lang": "en",
+      "has_scripts": false,
+      "primary": "dev",
+      "class_scores": {
+        "doc": 0,
+        "data": 1,
+        "web": 1,
+        "dev": 7,
+        "gen": 0,
+        "sys": 0
+      },
+      "zh_ratio": 0.001
+    },
+    {
+      "name": "libtv-skill",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/libtv-skill",
+      "lang": "zh",
+      "has_scripts": true,
+      "primary": "gen",
+      "class_scores": {
+        "doc": 1,
+        "data": 0,
+        "web": 0,
+        "dev": 0,
+        "gen": 20,
+        "sys": 0
+      },
+      "zh_ratio": 0.1272
+    },
+    {
+      "name": "ecommerce-copywriter",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/ecommerce-copywriter",
+      "lang": "zh",
+      "has_scripts": true,
+      "primary": "gen",
+      "class_scores": {
+        "doc": 0,
+        "data": 1,
+        "web": 0,
+        "dev": 0,
+        "gen": 10,
+        "sys": 0
+      },
+      "zh_ratio": 0.222
+    },
+    {
+      "name": "cloudbase",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/cloudbase",
+      "lang": "en",
+      "has_scripts": false,
+      "primary": "sys",
+      "class_scores": {
+        "doc": 0,
+        "data": 2,
+        "web": 7,
+        "dev": 6,
+        "gen": 0,
+        "sys": 14
+      },
+      "zh_ratio": 0.0186
+    },
+    {
+      "name": "andonq",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/andonq",
+      "lang": "zh",
+      "has_scripts": true,
+      "primary": "sys",
+      "class_scores": {
+        "doc": 0,
+        "data": 5,
+        "web": 0,
+        "dev": 0,
+        "gen": 0,
+        "sys": 11
+      },
+      "zh_ratio": 0.1442
+    },
+    {
+      "name": "tencentcloud-cos",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/tencentcloud-cos",
+      "lang": "zh",
+      "has_scripts": true,
+      "primary": "doc",
+      "class_scores": {
+        "doc": 14,
+        "data": 4,
+        "web": 4,
+        "dev": 0,
+        "gen": 7,
+        "sys": 10
+      },
+      "zh_ratio": 0.1886
+    },
+    {
+      "name": "lingxi-financialsearch-skill",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/lingxi-financialsearch-skill",
+      "lang": "zh",
+      "has_scripts": false,
+      "primary": "data",
+      "class_scores": {
+        "doc": 0,
+        "data": 15,
+        "web": 1,
+        "dev": 0,
+        "gen": 0,
+        "sys": 0
+      },
+      "zh_ratio": 0.3304
+    },
+    {
+      "name": "smooth-browser",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/smooth-browser",
+      "lang": "en",
+      "has_scripts": false,
+      "primary": "web",
+      "class_scores": {
+        "doc": 0,
+        "data": 1,
+        "web": 12,
+        "dev": 2,
+        "gen": 0,
+        "sys": 0
+      },
+      "zh_ratio": 0.0012
+    }
+  ],
+  "note": "分层属性为**抽样代理**，不是真值；真值由人工按 annotation_guide.md 独立标注。"
+}
