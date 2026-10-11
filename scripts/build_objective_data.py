@@ -37,14 +37,39 @@ from _common import load_json
 _SKIP_DIRS = {
     ".git", "node_modules", "__pycache__", ".venv", "venv",
     ".mypy_cache", ".pytest_cache", ".ruff_cache", ".vscode", ".idea",
+    # 与 extract_stats.SKIP_DIRS 保持一致：不随发布包分发的内容不入目录树（R12）
+    ".project", "openspec", ".codebuddy", ".opencode",
 }
-# 汇总判级关键词（与 render_report._severity_of 约定一致）
+# ── 级别：结构化取值（英文，机器判定唯一依据）+ 级别词（中文，仅用于报告呈现）──
+# 实证：级别曾只存在于「原因」文本里，下游靠找「严重」二字反推——一旦级别词改写，
+# 该项既不汇总也不着色，**静默丢失**。故改为生成时固化 level 字段，下游只读 level。
+LEVEL_SEVERE = "SEVERE"
+LEVEL_WARNING = "WARNING"
+LEVEL_NOTICE = "NOTICE"
+
+# 级别词（报告呈现用，与模板约定一致）
 _SEVERE = "严重"
 _WARNING = "警告"
 
 
-def _row(loc: str, reason: str, advice: str) -> dict[str, str]:
-    return {"位置": loc, "原因": reason, "改进建议": advice}
+def _level_from_text(reason: str) -> str:
+    """级别词 → 结构化级别的**唯一映射处**（改级别词只需改本函数）。"""
+    head = reason[:8]
+    if _SEVERE in head:
+        return LEVEL_SEVERE
+    if _WARNING in head:
+        return LEVEL_WARNING
+    return LEVEL_NOTICE
+
+
+def _row(loc: str, reason: str, advice: str, level: str = "") -> dict[str, str]:
+    """构造问题行。level 缺省时由级别词派生一次并固化，不再留给下游反推。"""
+    return {
+        "位置": loc,
+        "原因": reason,
+        "改进建议": advice,
+        "level": level or _level_from_text(reason),
+    }
 
 
 # ───────────────────────── 各 objective 维度映射 ─────────────────────────
@@ -52,9 +77,9 @@ def _row(loc: str, reason: str, advice: str) -> dict[str, str]:
 def map_frontmatter_quality(s: dict[str, Any]) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     if not s.get("frontmatter_valid"):
-        rows.append(_row("SKILL.md:1", "严重：Frontmatter YAML 解析失败", "修正 YAML 语法"))
+        rows.append(_row("SKILL.md:1", "严重：Frontmatter YAML 解析失败", "修正 YAML 语法：检查缩进是否一致、引号是否配对、冒号后是否漏了空格"))
     for f in s.get("missing_frontmatter_fields") or []:
-        rows.append(_row("SKILL.md:1", f"严重：缺少必需字段 {f}", f"补充 frontmatter 字段 {f}"))
+        rows.append(_row("SKILL.md:1", f"严重：缺少必需字段 {f}", f"在 SKILL.md 顶部 frontmatter（两行 --- 之间）补充字段 {f}"))
     # description 无触发语义 → 警告级（非致命：技能仍可用，但服务场景归纳缺乏依据、AI 判断含糊）。
     # 与上方「description 字段缺失 = 严重级（格式错误）」区分。
     if s.get("description_trigger_semantics") is False:
@@ -62,30 +87,37 @@ def map_frontmatter_quality(s: dict[str, Any]) -> list[dict[str, str]]:
                          "警告：description 未见触发语义（when/当/用于/use/场景 等），服务场景可能含糊",
                          "在 description 中说明「什么时候用/提供什么服务」"))
     if not s.get("name_format_valid"):
-        rows.append(_row("SKILL.md:1", "严重：name 格式不合规（须全小写连字符、≤64、不以-首尾）", "按命名规范修正 name"))
+        rows.append(_row("SKILL.md:1", "严重：name 格式不合规（须全小写连字符、≤64、不以-首尾）", "将 name 改为全小写连字符形式（如 my-skill），长度 ≤64，且不以 - 开头或结尾"))
     if s.get("name_dir_mismatch"):
-        rows.append(_row("SKILL.md:1", "警告：目录名与 name 不一致", "统一目录名与 name"))
+        rows.append(_row("SKILL.md:1", "警告：目录名与 name 不一致", "将技能目录名改成与 frontmatter 的 name 完全一致（含连字符）"))
     return rows
 
 
 def map_structure_org(s: dict[str, Any]) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     if not s.get("code_fence_balanced"):
-        rows.append(_row("SKILL.md", "严重：代码围栏未闭合", "检查 ``` 配对"))
+        rows.append(_row("SKILL.md", "严重：代码围栏未闭合", "检查 ``` 围栏是否成对（数量为奇数说明存在未闭合的代码块）"))
     if s.get("code_blocks_missing_lang"):
-        rows.append(_row("SKILL.md", f"警告：{s['code_blocks_missing_lang']} 处代码块缺语言标签", "为代码块标注语言"))
+        # R47 可定位性：位置用首个缺标签块的行号，原因里列出全部行号 ——
+        # 避免「N 处却不知在哪」这类读者无法动手的描述（v12 实证）。
+        _ll = s.get("code_blocks_missing_lang_lines") or []
+        _loc = f"SKILL.md:{_ll[0]}" if _ll else "SKILL.md"
+        _tail = f"（行 {'/'.join(str(x) for x in _ll)}）" if _ll else ""
+        rows.append(_row(_loc, f"警告：{s['code_blocks_missing_lang']} 处代码块缺语言标签{_tail}",
+                         "为代码块标注语言（如 ```python）"))
     for b in s.get("broken_file_links") or []:
-        rows.append(_row("SKILL.md", f"严重：损坏的相对文件链接：{b}", "修正或删除该链接"))
+        rows.append(_row("SKILL.md", f"严重：损坏的相对文件链接：{b}", "修正该相对链接使其指向真实存在的文件，或直接删除该链接"))
     for a in s.get("duplicate_anchor_slugs") or []:
-        rows.append(_row("SKILL.md", f"警告：重复锚点 slug：{a}", "修改重复标题"))
+        rows.append(_row("SKILL.md", f"警告：重复锚点 slug：{a}", "修改其中一个标题的措辞，使两者生成的锚点不再重复"))
     for d in s.get("invalid_embedded_formats") or []:
-        rows.append(_row(f"SKILL.md:{d.get('line')}", f"严重：内联{d['lang']}格式解析失败：{d.get('error')}", "修正内联格式块"))
+        rows.append(_row(f"SKILL.md:{d.get('line')}", f"严重：内联{d['lang']}格式解析失败：{d.get('error')}", "修正该内联格式块，使其能被对应解析器解析（JSON/YAML 语法须合法）"))
     for d in s.get("invalid_external_formats") or []:
-        rows.append(_row(d["path"], f"严重：外联格式解析失败：{d.get('error')}", "修正格式文件"))
+        rows.append(_row(d["path"], f"严重：外联格式解析失败：{d.get('error')}", "修正该格式文件内容，使其能被对应解析器解析"))
     for sec in s.get("missing_sections") or []:
-        rows.append(_row("SKILL.md", f"警告：缺少标准章节：{sec}", f"补充 {sec} 章节"))
+        # 章节级定位 `文件#章节`：章节尚不存在、无行号可给，但读者知道要补哪一节
+        rows.append(_row(f"SKILL.md#{sec}", f"警告：缺少标准章节：{sec}", f"补充 {sec} 章节：{_SEC_ADVICE.get(sec, '按该章节的常规内容补充')}"))
     for h in s.get("duplicate_headings") or []:
-        rows.append(_row("SKILL.md", f"警告：重复同级标题：{h}", "消除重复标题"))
+        rows.append(_row("SKILL.md", f"警告：重复同级标题：{h}", "合并或改写重复的标题，使同级标题不重复"))
     return rows
 
 
@@ -93,12 +125,15 @@ def map_eco_portability(s: dict[str, Any]) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     for p in s.get("machine_absolute_paths") or []:
         rows.append(_row(f"{p['path']}:{p['line']}", f"警告：硬编码机器相关路径（{p['kind']}）：{p['match']}",
-                         "改为相对路径或运行时解析，避免写死机器路径"))
+                         "改为相对于技能目录的路径，或改为运行时解析——避免写死 /Users/xxx、C:\\xxx 这类机器相关路径"))
     for sh in s.get("script_shebang") or []:
         rows.append(_row(f"{sh['path']}:1", f"警告：脚本 shebang 非 env 形式：{sh['shebang']}",
                          "改为 #!/usr/bin/env <解释器>"))
     for c in s.get("crlf_scripts") or []:
-        rows.append(_row(c["path"], "警告：脚本使用 CRLF 行尾（跨平台兼容风险）", "转为 LF 行尾"))
+        # 路径统一为正斜杠：Windows 产出的 `scripts\query_x.py` 在报告中显示反斜杠，
+        # 既不像路径也不满足定位器格式（v12 实证）
+        rows.append(_row(str(c["path"]).replace("\\", "/"),
+                         "警告：脚本使用 CRLF 行尾（跨平台兼容风险）", "转为 LF 行尾（可执行：sed -i 's/\\r$//' <文件>，或在编辑器中另存为 LF）"))
     return rows
 
 
@@ -185,7 +220,11 @@ def map_dir_tree(skill_root: Path) -> dict[str, Any]:
                 lines.extend(_walk(p, prefix + ext))
         return lines
 
-    tree = [str(root) + "/"]
+    # 只输出技能目录名，不输出绝对路径。
+    # 实证：报告里出现 D:\Source\test-skill\.testagent\skills\table_column_relations，
+    # 而**评测机器与技能改进开发机器通常不是同一台**——该路径在开发机上不存在，
+    # 既无法据以定位，还会误导读者以为技能装在这个位置。故一律相对化。
+    tree = [root.name + "/"]
     tree.extend(_walk(root, ""))
     return {"text": "\n".join(tree)}
 
@@ -219,7 +258,8 @@ def _collect_md_text(skill_root: Path) -> str:
         return ""
     for p in sorted(root.rglob("*.md")):
         try:
-            parts.append(p.read_text(encoding="utf-8", errors="ignore"))
+            # B3：统一按 BOM 处理（utf-8-sig），与 extract_stats 保持一致的编码口径
+            parts.append(p.read_text(encoding="utf-8-sig", errors="ignore"))
         except OSError:
             pass
     return "\n".join(parts)
@@ -280,7 +320,7 @@ def map_artifact_manifest(skill_root: Path) -> dict[str, Any]:
 
     来源优先级：
       ① SKILL.md「L1 产生物」声明行（权威）：形如
-         `- 质量门禁 → \`quality_report.md\` + \`gate_result.json\``
+         `- 质量门禁 → `quality_report.md` + `gate_result.json``
       ② 无该章节时：标注"未声明产出物"，不做脚本推导（推导易混入内部中间产物，
          需 AI 复核才有意义，留待方案 §2.1 的回退路径再启用）。
 
@@ -295,7 +335,8 @@ def map_artifact_manifest(skill_root: Path) -> dict[str, Any]:
         return {"text": "无（未找到 SKILL.md，无法提取产出物声明）"}
 
     try:
-        lines = skill_md.read_text(encoding="utf-8").splitlines()
+        # B3：同上，统一按 BOM 处理，避免与 extract_stats 结论不一致。
+        lines = skill_md.read_text(encoding="utf-8-sig").splitlines()
     except OSError:
         return {"text": "无（SKILL.md 读取失败）"}
 
@@ -355,12 +396,15 @@ def map_artifact_manifest(skill_root: Path) -> dict[str, Any]:
 # ───────────────────────── 关键问题汇总（客观聚合） ─────────────────────────
 
 def _severity_of(row: dict[str, str]) -> str:
-    """从'原因'列推断级别（严重/警告），用于客观问题汇总聚合。"""
+    """取级别：优先读结构化 `level` 字段；缺失时回退文本（兼容 LLM 填写的主观行）。"""
+    lvl = str(row.get("level") or "").strip().upper()
+    if lvl in (LEVEL_SEVERE, LEVEL_WARNING, LEVEL_NOTICE):
+        return lvl
     reason = row.get("原因", "")
     if _SEVERE in reason:
-        return _SEVERE
+        return LEVEL_SEVERE
     if _WARNING in reason:
-        return _WARNING
+        return LEVEL_WARNING
     return ""
 
 
@@ -372,19 +416,40 @@ def map_issue_summary(objective_dims: dict[str, Any]) -> tuple[dict[str, Any], d
     """
     critical_rows: list[dict[str, str]] = []
     warning_rows: list[dict[str, str]] = []
+    # 维度中文标签：用于把「维度归属」写进原因，从而让位置列保持纯净
+    _DIM_LABEL = {
+        "frontmatter_quality": "元信息",
+        "structure_org": "结构组织",
+        "eco_portability": "可移植性",
+        "dependency_availability": "依赖可用性",
+        "internal_integrity": "内部一致性",
+    }
     for dim_name, entry in objective_dims.items():
         rows = entry.get("rows", []) if isinstance(entry, dict) else []
         for r in rows:
             lvl = _severity_of(r)
-            if lvl == _SEVERE:
-                critical_rows.append({"位置": f"{dim_name}/{r.get('位置', '')}", "原因": r.get("原因", ""), "改进建议": r.get("改进建议", "")})
-            elif lvl == _WARNING:
-                warning_rows.append({"位置": f"{dim_name}/{r.get('位置', '')}", "原因": r.get("原因", ""), "改进建议": r.get("改进建议", "")})
+            # R47：位置列**不再**拼维度前缀。原实现产出 `structure_org/SKILL.md`，
+            # 既不是 `文件:行号`，又让读者看到内部维度 key（v12 实证）。
+            # 维度归属改为中文标签前缀写入「原因」，位置列保持纯净可定位。
+            _label = _DIM_LABEL.get(dim_name, dim_name)
+            if lvl == LEVEL_SEVERE:
+                critical_rows.append({"位置": r.get("位置", ""), "原因": f"[{_label}] {r.get('原因', '')}", "改进建议": r.get("改进建议", ""), "level": lvl})
+            elif lvl == LEVEL_WARNING:
+                warning_rows.append({"位置": r.get("位置", ""), "原因": f"[{_label}] {r.get('原因', '')}", "改进建议": r.get("改进建议", ""), "level": lvl})
     return (
         {"rows": critical_rows, "skipped": False, "skip_reason": ""},
         {"rows": warning_rows, "skipped": False, "skip_reason": ""},
     )
 
+
+# 缺章节类问题的「补什么」说明：只写「补充 XX 章节」读者仍不知该写什么内容，
+# 执行方（含自动化改进工具）无从下手，故按章节给出具体内容要求。
+_SEC_ADVICE = {
+    "Overview": "用 1–2 段说明这个技能做什么、解决什么问题",
+    "When to Use": "列出适合使用本技能的场景（可作为触发条件）",
+    "Common Pitfalls": "列出常见误用方式与规避办法",
+    "Verification Checklist": "列出交付前的自检项清单",
+}
 
 OBJECTIVE_DIMS = {
     "frontmatter_quality": map_frontmatter_quality,

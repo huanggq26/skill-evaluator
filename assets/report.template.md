@@ -3,21 +3,21 @@
   下列 HTML 注释为机器可读标注，渲染报告时不可见，仅供 schema 抽取器解析：
 
   ① 列结构声明（全局唯一，同构表格共用）：
-     `<!-- columns: 位置,原因,改进建议 -->`
+     columns: 位置,原因,改进建议
      所有"问题类"表格列结构一致，仅维度名不同；列名改此处即全局生效。
 
   ② 维度标注（每个表格维度一个）：
-     `<!-- dim: <维度名> type: <objective|subjective> -->`
+     dim: <维度名> type: <objective|subjective>
      - objective : 该维度数据由脚本(extract_stats/dep_probe)产出，AI 不生成。
      - subjective: 该维度需 AI 基于事实基座主观评测生成。
      系统层"是否客观"以「客观 JSON 实际是否含该字段」唯一裁定；
      合并时客观存在即优先，AI 误填亦被覆盖。本标注仅为 AI/读者提示。
 
   ③ 非表格维度（如技能摘要、功能表）以文本字段标注：
-     `<!-- field: <字段名> type: <objective|subjective> -->`
+     field: <字段名> type: <objective|subjective>
 -->
 
-# 技能质量评估报告: <skill-name>
+# 质量评测报告：<skill-name>
 
 > **模板说明（生成报告时删除本段）**：
 > - 每个检查类型/子类型小节二选一：**有问题** → 输出下述表格（一行一个问题）；**无问题** → 不输出空表头，小节标题下直接写"无"。
@@ -28,23 +28,30 @@
 <!-- columns: 位置,原因,改进建议 -->
 
 ## 技能摘要
-字数统计（客观，脚本提取）：
+字数统计：
 <!-- field: stat_chars type: objective -->
-目录结构（客观，脚本遍历技能目录生成）：
+目录结构：
 <!-- field: dir_tree type: objective -->
-多模态能力（主观，AI 基于 SKILL.md 归纳）：
+多模态能力：
 <!-- field: modalities type: subjective -->
 
-功能表（用户服务场景，AI **语义归纳**「技能为用户做什么」；**不是产出物清单**，产出物见下节）：
+功能表（技能为用户提供的服务场景；技能产出的文件见下节）：
 > **模板说明**：列该 skill 的**对外服务场景**（用户能怎么用、用它做什么），**不是产出物清单**
 > （产出物由下方「产出物清单」客观解析，两者互补不重复）。
 > 严禁把 L2 过程策略/内部脚手架当作服务场景，如样本生成、安全探测脚手架生成、generate_probe_scaffolds、
-> gen_functional、assemble_manifest 等。表格格式：`| 服务场景 | 用户意图 | 触发方式 | 产出（见产出物清单） |` + 数据行。生成报告时删除本段（含下方表头）。
+> gen_functional、assemble_manifest 等。
+> 表格格式：`| 服务场景 | 用户意图 | 触发方式 | 依据（SKILL.md 出处） |` + 数据行。生成报告时删除本段（含下方表头）。
+>
+> **F6（依据标注 · 强约束）**：「依据」列必须填**可定位出处** —— `SKILL.md:42`（行号）或
+> `SKILL.md §<章节名>`（如 `SKILL.md §用户功能区`）。**不得**留空，也**不得**写「全文」「参见文档」
+> 「SKILL.md」这类无法定位的表述。依据层次：①frontmatter description → ②When to Use →
+> ③用户功能区/路由表声明。无出处的条目视为**未证实归纳**，`scripts/validate_function_table.py` 将判违规并阻断。
+> （原「产出」列已移除：产出由下方「产出物清单」客观解析，功能表再列产出即诱导产出物混入，见 ERR-021。）
 <!-- field: function_table type: subjective -->
-| 服务场景 | 用户意图 | 触发方式 | 产出（见产出物清单） |
-|------|------|------|--------|
+| 服务场景 | 用户意图 | 触发方式 | 依据（SKILL.md 出处） |
+|------|------|------|------|
 
-产出物清单（客观，脚本静态解析 SKILL.md「L1 产生物」声明，**不运行被测技能**）：
+产出物清单（技能对外交付的产物）：
 > **模板说明**：列出技能对外交付的产物文件及其消费方。来源为 SKILL.md「L1 产生物」声明；
 > 消费方按扩展名判定（.md/.csv/.html → 人阅读；.json/.jsonl/.yaml → 程序解析；含 template → 人复用）。
 > 本清单仅供阅读与核对，**不在后续流程中做产出物验证**（评测不可能真正运行被测技能并验证其产出物）。
@@ -132,11 +139,11 @@
 ### 关键问题汇总
 #### 严重（影响正常加载运行）
 客观检查项：
-<!-- field: objective_critical type: objective -->
+<!-- dim: objective_critical type: objective -->
 AI 评估补充：
-<!-- field: subjective_critical type: subjective -->
+<!-- dim: subjective_critical type: subjective -->
 #### 警告（影响逻辑解读或执行）
 客观检查项：
-<!-- field: objective_warning type: objective -->
+<!-- dim: objective_warning type: objective -->
 AI 评估补充：
-<!-- field: subjective_warning type: subjective -->
+<!-- dim: subjective_warning type: subjective -->

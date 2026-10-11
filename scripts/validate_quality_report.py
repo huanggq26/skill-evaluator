@@ -51,8 +51,28 @@ FORBIDDEN_FUNCTION_TABLE_TERMS = [
     "阶段 1", "阶段1", "stage 1", "stage1",
 ]
 ALLOWED_FONT_COLORS = {"red", "goldenrod"}  # 严重 / 警告；提醒无 font 标签
+# 三档可定位格式：① `文件:行号` ② `文件#章节`（章节级，如缺章节类问题）
+# ③ 纯文件路径（文件级属性，如 CRLF 行尾——该文件整体即问题所在，无行号可给）
+# 定位后缀三选一：`:行号`（可带范围 `56-58`）/ `#章节`（章节名允许空格，故用 [^|]）/ 无后缀（文件级）。
+# 路径允许反斜杠：Windows 产物常见 `scripts\query_x.py`，属合法路径而非不合规值。
 POSITION_RE = re.compile(
-    r"^(SKILL\.md|[A-Za-z0-9_./\-]+\.[A-Za-z0-9]+):\d+$", re.IGNORECASE
+    r"^(SKILL\.md|[A-Za-z0-9_./\\-]+\.[A-Za-z0-9]+)(:\d+(?:-\d+)?|#[^|]+)?$",
+    re.IGNORECASE,
+)
+# 明确不可定位的模糊表述（R47：**阻断**级）——读者拿着报告根本找不到地方改
+_VAGUE_LOCATION = ("全文", "整体", "多处", "参见文档", "参见", "未知", "n/a", "tbd", "待定", "略")
+# 内部维度 key 前缀（R47：**阻断**级）——原由 build_objective_data 拼进位置列，
+# 产出 `structure_org/SKILL.md` 这类既非路径、又暴露内部实现的脏值
+_DIM_KEY_PREFIXES = (
+    "frontmatter_quality/", "structure_org/", "eco_portability/",
+    "dependency_availability/", "internal_integrity/",
+)
+# 评测侧能力局限的特征表述：这类是**框架做不到**，不是被测技能有缺陷。
+# v12 实证：AI 把「技能为交互式 CLI 类型，无 HTTP 端点，自动化测试困难」写进了
+# 「警告（影响逻辑解读或执行）」，读者会误判为技能问题。检出后告警，交 AI 复核。
+_FRAMEWORK_LIMIT_KW = (
+    "自动化测试困难", "无法自动化", "难以自动化", "评测器无法", "评测框架无法",
+    "框架无法", "本评测无法", "无法自动执行", "难以自动执行", "不支持自动",
 )
 
 # ───────────────────────────── B 层：客观事实锚点 ─────────────────────────────
@@ -185,9 +205,17 @@ def run_structural(report: Path, template: Path | None, source: Path | None,
     # 4) 定位器格式（警告级）：校验"问题位置"列
     tables = parse_tables(text)
     for headers, rows in tables:
-        if "问题位置" not in headers:
+        # 表头兼容：模板 columns 实为 `位置,原因,改进建议`，历史文案曾写「问题位置」。
+        # 此前**只认「问题位置」**，而真实报告表头是「位置」→ 定位器校验被整体 continue
+        # 跳过，**从未生效过**（v12 实证：`SKILL.md全文` 进入报告，校验器仍报
+        # success=true / quality_score=100）。故两种表头都认。
+        idx = None
+        for _hdr in ("问题位置", "位置"):
+            if _hdr in headers:
+                idx = headers.index(_hdr)
+                break
+        if idx is None:
             continue
-        idx = headers.index("问题位置")
         for r in rows:
             if idx >= len(r):
                 continue
@@ -196,8 +224,31 @@ def run_structural(report: Path, template: Path | None, source: Path | None,
                 continue
             # 去掉可能存在的 font 标签干扰
             cell_clean = re.sub(r"<[^>]+>", "", cell).strip()
-            if not POSITION_RE.match(cell_clean):
+            low = cell_clean.lower()
+            # R47 升级：此前「SKILL.md全文」这类只给警告，AI 照填不误（v12 实证：
+            # 提示词已明令禁止，仍被写入）。这类值让报告彻底失去可操作性，
+            # 故不可定位的模糊表述与内部维度前缀一律 **阻断**（errors），
+            # 格式不合规但尚可辨识的仍为警告。
+            if any(v in low for v in _VAGUE_LOCATION) or any(p in low for p in _DIM_KEY_PREFIXES):
+                errors.append(
+                    f"问题位置不可定位（R47）：'{cell_clean}' —— 须为 `文件:行号`"
+                    f"（如 `SKILL.md:124`）或 `文件#章节`；禁止「全文/整体/多处」及维度 key 前缀"
+                )
+            elif not POSITION_RE.match(cell_clean):
                 warnings.append(f"问题位置格式不合规（应为 资源文件:行号）: '{cell_clean}'")
+
+        # 框架局限误记检测：把评测侧能力缺口写成被测技能的问题
+        if "原因" in headers:
+            _ci = headers.index("原因")
+            for r in rows:
+                if _ci >= len(r):
+                    continue
+                _c = re.sub(r"<[^>]+>", "", r[_ci]).strip()
+                if _c and any(k in _c for k in _FRAMEWORK_LIMIT_KW):
+                    warnings.append(
+                        f"疑似评测侧局限被记为技能问题：'{_c[:60]}'"
+                        f"（框架做不到 ≠ 技能有缺陷，请复核是否应从技能问题中移除）"
+                    )
 
     # 5) 级别合法性（警告级）：<font color> 仅 red/GoldenRod
     for m in re.finditer(r"<font\s+color=[\"']?([^\"'>]+)[\"']?>", text, re.IGNORECASE):
@@ -214,7 +265,7 @@ def run_structural(report: Path, template: Path | None, source: Path | None,
     if template and template.exists():
         tpl_headings = collect_headings(template.read_text(encoding="utf-8"))
         for h in tpl_headings:
-            if h in ("技能质量评估报告",):
+            if h in ("质量评测报告：<skill-name>",):
                 continue
             # 模板含占位符（如 `<skill-name>`）的标题无法与实际报告逐字匹配，跳过骨架比对
             if "<" in h or ">" in h:
@@ -463,6 +514,62 @@ def main() -> None:
                     help="可选，输出质量分 JSON 路径；写入 {success, quality_score, errors, warnings} 供 cacu --quality-score 接入 scores.json")
     args = ap.parse_args()
 
+    # ── 旧模式：校验 markdown 报告（A 结构 + B 事实锚点 + C 计划闭环）──
+    # 历史缺陷：本分支曾位于 C+ 分支的 `return` **之后**，永不可达——下列校验长期不执行，
+    # 且 `--report` 调用会直接 SystemExit 并给出自相矛盾的报错（要求提供已提供的 --report）。
+    # 现已前置修复（R3）。与 C+ 分支的判定顺序：显式给了数据态参数就走 C+，否则走旧模式。
+    if args.report and not (args.data or args.objective):
+        report = Path(args.report)
+        errors, warnings = run_structural(
+            report, Path(args.template) if args.template else None,
+            Path(args.source) if args.source else None, args.allow_twin_json,
+        )
+
+        objective_anchor: list[dict[str, Any]] = []
+        if args.stats:
+            sp = Path(args.stats)
+            if sp.exists():
+                objective_anchor = run_fact_anchor(report, sp)
+                for a in objective_anchor:
+                    warnings.append(
+                        f"B层事实锚点疑似幻觉: {a['fact']} 命中 {a['contradicting_keywords']}（需 LLM 复核）"
+                    )
+            else:
+                warnings.append(f"--stats 指定但文件不存在，跳过 B 层: {sp}")
+
+        # C 层：评测计划闭环（Plan-First 断点续评）
+        plan_stats: dict[str, int] = {}
+        if args.plan:
+            plan_errors, plan_stats = run_plan_gate(Path(args.plan))
+            errors.extend(plan_errors)
+
+        success = not errors
+        quality_score = max(0, 100 - len(errors) * 10 - len(warnings) * 2)
+        result = {
+            "success": success,
+            "quality_score": quality_score,
+            "errors": errors,
+            "warnings": warnings,
+            "objective_anchor": objective_anchor,
+            "plan_stats": plan_stats,
+            "mode": "report_markdown",
+        }
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        if args.quality_score_out:
+            out = {
+                "success": success,
+                "quality_score": quality_score,
+                "error_count": len(errors),
+                "warning_count": len(warnings),
+            }
+            Path(args.quality_score_out).parent.mkdir(parents=True, exist_ok=True)
+            Path(args.quality_score_out).write_text(
+                json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        if not success:
+            raise SystemExit(1)
+        return
+
     # ── 方案 C+ 分支：校验数据态 ──
     from schema_from_template import extract_schema
     if not args.template:
@@ -503,58 +610,6 @@ def main() -> None:
     if not success:
         raise SystemExit(1)
     return
-
-    # ── 旧模式：校验 markdown 报告（保留兼容回归测试）──
-    if not args.report:
-        raise SystemExit("[validate] 须提供 --report（旧模式）或 --data（C+ 模式）")
-
-    report = Path(args.report)
-    errors, warnings = run_structural(
-        report, Path(args.template) if args.template else None,
-        Path(args.source) if args.source else None, args.allow_twin_json,
-    )
-
-    objective_anchor: list[dict[str, Any]] = []
-    if args.stats:
-        sp = Path(args.stats)
-        if sp.exists():
-            objective_anchor = run_fact_anchor(report, sp)
-            for a in objective_anchor:
-                warnings.append(f"B层事实锚点疑似幻觉: {a['fact']} 命中 {a['contradicting_keywords']}（需 LLM 复核）")
-        else:
-            warnings.append(f"--stats 指定但文件不存在，跳过 B 层: {sp}")
-
-    # C 层：评测计划闭环（Plan-First 断点续评）
-    plan_stats: dict[str, int] = {}
-    if args.plan:
-        plan_errors, plan_stats = run_plan_gate(Path(args.plan))
-        errors.extend(plan_errors)
-
-    success = not errors
-    # Phase C #7：质量分 0-100（问题密度映射），独立于红线门禁；
-    # 红线 errors 重则大幅扣分，warnings 轻扣，无问题则满分 100。
-    quality_score = max(0, 100 - len(errors) * 10 - len(warnings) * 2)
-    result = {
-        "success": success,
-        "quality_score": quality_score,
-        "errors": errors,
-        "warnings": warnings,
-        "objective_anchor": objective_anchor,
-        "plan_stats": plan_stats,
-    }
-    print(json.dumps(result, ensure_ascii=False, indent=2))
-    if args.quality_score_out:
-        out = {
-            "success": success,
-            "quality_score": quality_score,
-            "error_count": len(errors),
-            "warning_count": len(warnings),
-        }
-        Path(args.quality_score_out).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.quality_score_out).write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"  -> quality_score={quality_score} -> {args.quality_score_out}")
-    if not success:
-        raise SystemExit(1)
 
 
 if __name__ == "__main__":

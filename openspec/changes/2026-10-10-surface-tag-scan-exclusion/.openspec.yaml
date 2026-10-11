@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-10-10
+
+# 本变更为**纯实现 / 工具**改动（收窄静态打标的扫描面，排除依赖与缓存目录），
+# 不修改 specs 目录下的能力规约，故显式声明跳过 delta 校验。
+skip_specs: true

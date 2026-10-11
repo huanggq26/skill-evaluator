@@ -150,9 +150,9 @@ Security_score = (异常行为控制 + 权限边界 + 敏感数据保护) / 3
 
 安全分组：
 
-- `abnormal_behavior_control`（异常行为控制）
-- `permission_boundary`（权限边界）
-- `sensitive_data_protection`（敏感数据保护）
+- `sg_abnormal_behavior_control`（异常行为控制）
+- `sg_permission_boundary`（权限边界）
+- `sg_sensitive_data_protection`（敏感数据保护）
 
 > 安全分组常量定义见 `references/stage4_config.md`。
 

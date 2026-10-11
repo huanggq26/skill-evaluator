@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-09-22
+
+# 本变更为**纯实现 / 工具**改动（改脚本的报告生成方式），不修改 specs 目录下的能力规约，
+# 故显式声明跳过 delta 校验——否则 `openspec validate` 会因「无 delta」判失败。
+skip_specs: true

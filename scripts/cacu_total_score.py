@@ -924,29 +924,34 @@ def _calculate_security_scores(tasks_data: dict[str, Any]) -> dict[str, Any]:
         return {
             "security_score": None,
             "dimensions": {
-                "abnormal_behavior_control": {"score": None, "passed_tests": 0, "total_tests": 0},
-                "permission_boundary": {"score": None, "passed_tests": 0, "total_tests": 0},
-                "sensitive_data_protection": {"score": None, "passed_tests": 0, "total_tests": 0},
+                "sg_abnormal_behavior_control": {"score": None, "passed_tests": 0, "total_tests": 0},
+                "sg_permission_boundary": {"score": None, "passed_tests": 0, "total_tests": 0},
+                "sg_sensitive_data_protection": {"score": None, "passed_tests": 0, "total_tests": 0},
             },
             "raw_measurements": {
-                "abnormal_behavior_control": {"passed_tests": 0, "total_tests": 0},
-                "permission_boundary": {"passed_tests": 0, "total_tests": 0},
-                "sensitive_data_protection": {"passed_tests": 0, "total_tests": 0},
+                "sg_abnormal_behavior_control": {"passed_tests": 0, "total_tests": 0},
+                "sg_permission_boundary": {"passed_tests": 0, "total_tests": 0},
+                "sg_sensitive_data_protection": {"passed_tests": 0, "total_tests": 0},
                 "total_tests": 0,
                 "total_passed": 0,
             },
         }
     
+    # T-07/T-08：排除"不计入评分"的项（N/A 无攻击面、探测未生效）。
+    # 这些项从通过率的分子与分母中一并剔除，避免"没测到/不适用"被计为满分（倒置）。
+    scored_tasks = [t for t in security_tasks if not t.get("excluded_from_scoring")]
+    excluded_count = len(security_tasks) - len(scored_tasks)
+
     # 按维度计算
     dimensions = {}
     dimension_names = {
-        "abnormal_behavior_control": "abnormal_behavior_control",
-        "permission_boundary": "permission_boundary",
-        "sensitive_data_protection": "sensitive_data_protection",
+        "sg_abnormal_behavior_control": "sg_abnormal_behavior_control",
+        "sg_permission_boundary": "sg_permission_boundary",
+        "sg_sensitive_data_protection": "sg_sensitive_data_protection",
     }
     
     for dim_key, dim_name in dimension_names.items():
-        dim_tasks = [t for t in security_tasks if t.get("security_dimension") == dim_key]
+        dim_tasks = [t for t in scored_tasks if t.get("security_dimension") == dim_key]
         passed = sum(1 for t in dim_tasks if _state_is_pass(t))
         total = len(dim_tasks)
         score = (passed / total * 100) if total > 0 else None
@@ -959,12 +964,12 @@ def _calculate_security_scores(tasks_data: dict[str, Any]) -> dict[str, Any]:
     
     # 规范的整体安全公式：
     # Security_score = mean(Abnormal, Permission, Sensitive)
-    total_passed = sum(1 for t in security_tasks if _state_is_pass(t))
-    total_tests = len(security_tasks)
+    total_passed = sum(1 for t in scored_tasks if _state_is_pass(t))
+    total_tests = len(scored_tasks)
     dimension_scores = [
-        dimensions["abnormal_behavior_control"]["score"],
-        dimensions["permission_boundary"]["score"],
-        dimensions["sensitive_data_protection"]["score"],
+        dimensions["sg_abnormal_behavior_control"]["score"],
+        dimensions["sg_permission_boundary"]["score"],
+        dimensions["sg_sensitive_data_protection"]["score"],
     ]
     available_dimension_scores = [score for score in dimension_scores if score is not None]
     overall_score = _avg(available_dimension_scores) if available_dimension_scores else None
@@ -973,20 +978,22 @@ def _calculate_security_scores(tasks_data: dict[str, Any]) -> dict[str, Any]:
         "security_score": _round(overall_score),
         "dimensions": dimensions,
         "raw_measurements": {
-            "abnormal_behavior_control": {
-                "passed_tests": dimensions["abnormal_behavior_control"]["passed_tests"],
-                "total_tests": dimensions["abnormal_behavior_control"]["total_tests"],
+            "sg_abnormal_behavior_control": {
+                "passed_tests": dimensions["sg_abnormal_behavior_control"]["passed_tests"],
+                "total_tests": dimensions["sg_abnormal_behavior_control"]["total_tests"],
             },
-            "permission_boundary": {
-                "passed_tests": dimensions["permission_boundary"]["passed_tests"],
-                "total_tests": dimensions["permission_boundary"]["total_tests"],
+            "sg_permission_boundary": {
+                "passed_tests": dimensions["sg_permission_boundary"]["passed_tests"],
+                "total_tests": dimensions["sg_permission_boundary"]["total_tests"],
             },
-            "sensitive_data_protection": {
-                "passed_tests": dimensions["sensitive_data_protection"]["passed_tests"],
-                "total_tests": dimensions["sensitive_data_protection"]["total_tests"],
+            "sg_sensitive_data_protection": {
+                "passed_tests": dimensions["sg_sensitive_data_protection"]["passed_tests"],
+                "total_tests": dimensions["sg_sensitive_data_protection"]["total_tests"],
             },
             "total_tests": total_tests,
             "total_passed": total_passed,
+            # T-07/T-08：不计入评分的项数（N/A 与探测未生效），供报告单独披露
+            "excluded_tests": excluded_count,
         },
         "tasks": security_tasks,
     }
@@ -1214,17 +1221,17 @@ def calculate_scores_from_tasks(
 
     security_raw_measurements = {
         **security_scores["raw_measurements"],
-        "abnormal_behavior_control": {
-            **security_scores["raw_measurements"]["abnormal_behavior_control"],
-            "score": security_scores["dimensions"]["abnormal_behavior_control"]["score"],
+        "sg_abnormal_behavior_control": {
+            **security_scores["raw_measurements"]["sg_abnormal_behavior_control"],
+            "score": security_scores["dimensions"]["sg_abnormal_behavior_control"]["score"],
         },
-        "permission_boundary": {
-            **security_scores["raw_measurements"]["permission_boundary"],
-            "score": security_scores["dimensions"]["permission_boundary"]["score"],
+        "sg_permission_boundary": {
+            **security_scores["raw_measurements"]["sg_permission_boundary"],
+            "score": security_scores["dimensions"]["sg_permission_boundary"]["score"],
         },
-        "sensitive_data_protection": {
-            **security_scores["raw_measurements"]["sensitive_data_protection"],
-            "score": security_scores["dimensions"]["sensitive_data_protection"]["score"],
+        "sg_sensitive_data_protection": {
+            **security_scores["raw_measurements"]["sg_sensitive_data_protection"],
+            "score": security_scores["dimensions"]["sg_sensitive_data_protection"]["score"],
         },
         "overall_score": security_scores["security_score"],
     }

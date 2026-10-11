@@ -23,12 +23,17 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+
+# B3/v14 实证：Tasks.json 的 environment.requires.commands 仍为 ["python3"]，
+# 根因在本文件（此前只修了两个 scaffolds 脚本，漏了这里）。Windows 无 python3 → 任务必然失败。
+_PY_CMD = "python3" if shutil.which("python3") else "python"
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 from _common import FUNCTION_TABLE_PLACEHOLDER_HITS as _PLACEHOLDER_HITS
+from _common import derive_security_group
 
 # ── 常量（来源：references/config.md 评分阈值节；引用而非散落硬编码）─────────────
 RUBRIC_COUNT = 10
@@ -127,6 +132,10 @@ _TASKDESC_TEMPLATE = '''# {tid} — {title}
 {objective}
 
 Agent 必须将最终简报/结论写入任务结果根目录的 `result.json`，字段含 `status`/`summary`/`items`/`evidence`/`notes`。
+
+> **写入路径声明（T-09）**：`result.json` 须含 `execution_path` 字段，取值
+> `script_direct`（脚本真实调用被测技能声明端点后落盘）或 `agent_session`（Agent 会话执行后撰写）。
+> 当前自动化流水线只使用 `script_direct`；两者产物性质不同，**跨技能对比只允许同路径相比**。
 
 ### Rubric
 R1~R3 基础合规（result.json 可解析/主产物存在/输出合约最低合规）；
@@ -340,7 +349,7 @@ def _gen_functional_case(case_dir: Path, row: dict) -> dict:
         },
         "environment": {
             "platforms": ["macos", "linux", "windows"],
-            "requires": {"commands": ["python3"], "packages": [], "credentials": [], "services": [], "hardware": []},
+            "requires": {"commands": [_PY_CMD], "packages": [], "credentials": [], "services": [], "hardware": []},
             "network": row.get("network", "none"),
         },
         "verifier": {
@@ -437,7 +446,12 @@ def main() -> None:
                         for i in range(1, 11)
                     ]
                 if not _sp.get("security_group") and _sp.get("primary_asi_category"):
-                    _sp["security_group"] = _sp["primary_asi_category"]
+                    # 修复（T-02 同类缺陷）：原实现直接把 ASI 编号当评分桶写入
+                    # （如 "ASI03"），产生既非 abnormal/permission/sensitive 的非法值。
+                    try:
+                        _sp["security_group"] = derive_security_group(_sp["primary_asi_category"])
+                    except ValueError:
+                        pass
             print(f"[ok] 安全探测（直接消费 probes 声明）：{len(sp_entries)} 个")
             # 直接消费分支也必须生成可运行的 Grader/TaskDescription 脚手架，
             # 否则下游 validate_manifest_contract（E21/E23）与 backfill_reviews 会因缺评分器而失败。

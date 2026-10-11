@@ -42,3 +42,5 @@ python3 .project/tmp/selfcheck_refactor.py
 >
 > **同名文件按同根解析**：多项目均有 `TASKLOG.md` / `AGENTS_RULES.md` 时，
 > `check_links.py` 优先在引用文件所在根内解析目标，避免跨项目错配。
+| `check_rule_code_consistency.py` | 治理脚本 | 规则层断言 ↔ 代码 一致性核对（RC-01~RC-06，防静默漂移） | 改规则层或相关代码后；回归中 | G6 条款被删，或被上游工具接管 | 在用 |
+| `govkit.py` | 治理脚本 | 治理写盘 + 治理骨架脚手架：`backup` / `set`（S1 断言 + S2 体积守卫 + S3 原子写 + 日志）/ `verify` / `log` / **`scaffold`**（生成 openspec change 骨架或 TASKLOG 任务块骨架，含必填字段与自检锚点，避免手工创建漏字段） | 任何治理区或规格文件写入前 | 母规格「整文件重写的守卫」条款被删，或被上游工具接管 | 在用 |

@@ -263,8 +263,14 @@ def extract_external_deps(skill_dir: str, existing: Optional[list] = None):
             "auto_discovered": True,
             # 模板/参数化标记：target 含通配 '*' 或路径参数 '{...}' → 不可直接请求，D1 跳过实探测
             "templated": ("*" in target) or ("{" in target and "}" in target),
-            # 默认 method；只读匿名 GET 视为天然幂等（D6 可跳过），由探测器结合判定
-            "method": "GET",
+            # R20 修正：此处**不得**预填 "method": "GET"。
+            # 原因：dep_probe 以「manifest 是否声明 method」判定 405 的性质——未声明时
+            # 405 属探测方法不匹配，归 config_defect（不拉低评分、不否决）；已声明仍 405
+            # 才判 contract_defect（技能契约缺陷、否决）。
+            # 本提取器是**自动发现**，并不知道端点的真实方法；预填 GET 会让"未声明"永远为假，
+            # 导致 POST 端点被 GET 探测返回 405 时被误判为技能自身缺陷并触发否决。
+            # 实测（table_column_relations v4）：8 项依赖中 6 项 405 全部误判为严重并否决上架。
+            # 不填 method 时 dep_probe 仍按 GET 探测（行为不变），但能正确识别"方法未声明"。
         })
 
     # 覆盖度核对：上下文中发现的访问点，是否都进了 deps

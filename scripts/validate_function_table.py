@@ -7,15 +7,18 @@
 当功能。本脚本提供归纳后的机械校验，与 merge_report_data 的占位提醒（源头）
 构成双保险。
 
-四层校验：
+五层校验：
   1. 产物黑名单（违规，exit 1）：条目含产出物/过程构件名词，且无用户动作词
   2. 服务视角（警告）：条目缺少用户动作动词，提示人工复核
   3. 同源检查（警告）：功能表整体与 frontmatter description 无任何内容词交集
   4. 三方漂移（警告）：能力声明 / 用户指南 / 功能表 三处描述互不覆盖
      ——对应 ERR-021 修改策略第 4 条；只报告不阻断、不自动修复
+  5. **F6 依据标注（违规，exit 1）**：每条须注明 SKILL.md 可定位出处
+     （`SKILL.md:<行号>` 或 `SKILL.md §<章节名>`）；无出处即阻断。
+     理由：归纳不可回溯即等同臆造（v5 实证：功能表跨轮漂移、与 §4 不同源）
 
 用法：
-  python3 validate_function_table.py --report <quality/xx评测.md> \\
+  python3 validate_function_table.py --report <quality/quality_report.md> \\
                                      --skill-dir <被测技能目录>
 
 退出码：0 通过或仅有警告 / 1 有违规 / 2 用法错误
@@ -40,6 +43,18 @@ except Exception:  # 守卫常量缺失时不阻断黑名单校验
     _SERVICE_VERBS = None
 
 _CJK_WORD = re.compile(r"[\u4e00-\u9fff]{2,4}")
+# ── L0 语言自适应（语义漂移治理方案）────────────────────────────────
+# 原只支持中文分词：英文技能/英文功能表产出**空词集**，进而被判
+# 「缺失能力词」或「零交集 → 疑似漂移」——属语言假设导致的误报。
+# 现按中英**并集**取词：中文分支行为完全不变，仅新增英文分支，故既有四层校验不回退。
+# 不预设主语言阈值（避免未实测阈值）：两种词表同时生效，交集只会更容易命中、不会更严。
+_EN_WORD = re.compile(r"\b[A-Za-z]{3,}\b")
+_EN_STOP = frozenset("""
+the and for with that this from your you are can will not all any has have been
+its our their when what which who how why use using used uses able into out over
+under more most other some such only than then there here these those about after
+before between during through also each may might must should would could
+""".split())
 
 # ── 三方漂移检测（ERR-021 修改策略第 4 条）────────────────────────
 # 无区分度通用词：任何技能的描述里都会出现，不构成能力差异，比对前剔除
@@ -49,6 +64,19 @@ _STOP_WORDS = frozenset({
     "评测", "技能", "报告", "结果", "阶段", "过程",
 })
 _GUIDE_SECTION_RE = re.compile(r"^##\s+1[.\s]")
+
+# ── F6 依据标注（强约束，无出处即阻断）────────────────────────────
+# 实证：功能表由 AI 归纳，若不要求出处，条目可凭印象生成——v5 实证功能表与
+# benchmark §4 不同源、条目跨轮漂移（同一技能两次归纳结果不一致），读者无从
+# 核证。故要求每条注明 SKILL.md 的**可定位**出处（行号或章节名）。
+# 匹配：`SKILL.md:42` / `SKILL.md 第 42 行` / `SKILL.md §用户功能区` / `SKILL.md 用户功能区`；
+# **不匹配**裸 `SKILL.md`（无定位信息，等同未标注）。
+_SOURCE_RE = re.compile(
+    r"SKILL\.md\s*(?:[:：#§]|第|L|l)?\s*[\w\u4e00-\u9fff][\w\u4e00-\u9fff\-.]*",
+    re.IGNORECASE,
+)
+# 依据层次①：frontmatter description 亦为合法出处（技能摘要的权威声明）
+_SOURCE_DESC_RE = re.compile(r"\bdescription\b", re.IGNORECASE)
 
 
 def _load_guide_functions(skill_dir: Path) -> str:
@@ -74,8 +102,14 @@ def _load_guide_functions(skill_dir: Path) -> str:
 
 
 def _content_words(text: str) -> set:
-    """文本 → 能力词集合（剔除无区分度通用词）。"""
-    return {w for w in _CJK_WORD.findall(text or "") if w not in _STOP_WORDS}
+    """文本 → 能力词集合（语言自适应：中英并集；各剔除本语言无区分度词）。
+
+    中文分支与原实现一致（保证既有行为不回退）；英文分支为 L0 新增。
+    """
+    s = text or ""
+    words: set = {w for w in _CJK_WORD.findall(s) if w not in _STOP_WORDS}
+    words |= {w.lower() for w in _EN_WORD.findall(s) if w.lower() not in _EN_STOP}
+    return words
 
 
 def _check_three_way_drift(desc: str, guide: str, table: str) -> list:
@@ -130,6 +164,12 @@ def _extract_table_rows(report: Path) -> list:
         if s.startswith("产出物清单"):
             break
         if not s.startswith("|"):
+            # 兼容 **md 列表**形式（提示词自 v9 起要求功能表用列表逐项呈现，
+            # 渲染层再切分）：若此处只认表格行，列表形式会被判「未找到数据行」而
+            # **整体跳过校验** —— 产物黑名单、服务视角、F6 依据全部失效。
+            # 实证：table_column_relations v9/v10 功能表即为列表形式。
+            if s.startswith("- ") or s.startswith("* "):
+                rows.append(s[2:].strip())
             continue
         cells = [c.strip() for c in s.strip("|").split("|")]
         if not cells or not cells[0]:
@@ -177,6 +217,13 @@ def main() -> int:
         has_internal = any(kw and kw in r for kw in _INTERNAL_KW)
         has_service = bool(_SERVICE_VERBS and _SERVICE_VERBS.search(r))
         table_words |= set(_CJK_WORD.findall(r))
+
+        # F6：无出处即阻断 —— 归纳必须可回溯到权威来源，否则等同臆造
+        if not (_SOURCE_RE.search(r) or _SOURCE_DESC_RE.search(r)):
+            violations.append(
+                f"缺少可定位出处（F6）：{r[:90]}"
+                f"　→ 请在「依据」列填 `SKILL.md:<行号>` 或 `SKILL.md §<章节名>`"
+            )
 
         if (has_artifact or has_internal) and not has_service:
             violations.append(f"疑似产出物/过程构件（且无用户动作词）: {r[:90]}")

@@ -55,17 +55,17 @@
     }
   },
   "security_dimensions": {
-    "abnormal_behavior_control": {
+    "sg_abnormal_behavior_control": {
       "score": "number",
       "passed_tests": "number",
       "total_tests": "number"
     },
-    "permission_boundary": {
+    "sg_permission_boundary": {
       "score": "number",
       "passed_tests": "number",
       "total_tests": "number"
     },
-    "sensitive_data_protection": {
+    "sg_sensitive_data_protection": {
       "score": "number",
       "passed_tests": "number",
       "total_tests": "number"

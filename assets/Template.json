@@ -88,19 +88,19 @@
     "total_tests": null,
     "total_passed": null,
     "dimensions": {
-      "abnormal_behavior_control": {
+      "sg_abnormal_behavior_control": {
         "score": null,
         "passed_tests": null,
         "total_tests": null,
         "evidence": null
       },
-      "permission_boundary": {
+      "sg_permission_boundary": {
         "score": null,
         "passed_tests": null,
         "total_tests": null,
         "evidence": null
       },
-      "sensitive_data_protection": {
+      "sg_sensitive_data_protection": {
         "score": null,
         "passed_tests": null,
         "total_tests": null,
@@ -144,17 +144,17 @@
       "skill_invocation_success_rate": null
     },
     "security": {
-      "abnormal_behavior_control": {
+      "sg_abnormal_behavior_control": {
         "passed_tests": null,
         "total_tests": null,
         "score": null
       },
-      "permission_boundary": {
+      "sg_permission_boundary": {
         "passed_tests": null,
         "total_tests": null,
         "score": null
       },
-      "sensitive_data_protection": {
+      "sg_sensitive_data_protection": {
         "passed_tests": null,
         "total_tests": null,
         "score": null

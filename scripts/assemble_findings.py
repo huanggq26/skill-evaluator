@@ -17,7 +17,7 @@
                        asi_category / security_group 元数据，若 findings 缺字段）
   --report-md          输出 problem_report.md 路径
   --report-csv         输出 problems.csv 路径
-  --quality-report     可选，<skill-name>评测.md 路径；提供则 problem_report.md 增加「四、质量评估（PreflightAgent）」章节
+  --quality-report     可选，quality_report.md 路径；提供则 problem_report.md 增加「四、质量评估（PreflightAgent）」章节
   --functional-grading 可选，功能任务 grading_result.json 文件或目录（可重复）；把 passed=false 的
                        rubric 提取为「二、功能任务问题」节（与门禁报告 benchmark_report.md 同源、不重复算分）
   --summary-json       可选，输出聚合统计 JSON 路径
@@ -276,7 +276,7 @@ def fmt_list(v) -> str:
 
 
 def render_markdown(findings: List[dict], generated_at: str, quality_report: Optional[str] = None,
-                    functional: Optional[List[dict]] = None,
+                    functional: Optional[List[dict]] = None, skill_name: str = "",
                     n_func_baseline: int = 0,
                     efficiency_degradations: Optional[List[dict]] = None,
                     incomparable_exclusions: Optional[List[dict]] = None,
@@ -311,9 +311,33 @@ def render_markdown(findings: List[dict], generated_at: str, quality_report: Opt
     ver_sev = sev_counts(verified)
 
     out: List[str] = []
-    out.append("# 问题报告（Problem Report）")
+    # R19：标题与另两份报告统一为「# <中文职能名>：<技能名>」——全角冒号、无英文副标题。
+    # 原此处硬编码旧标题「# 问题报告（Problem Report）」，且本脚本为逐行拼接、**未读取模板**，
+    # 导致 assets/problem_report.template.md 里的标题改动完全不生效（v4 实证）。
+    # 技能名来源优先级（v11 实证修正）：
+    #   1) 调用方显式传入的 skill_name（取自 manifest.skill_name，**最可靠**）
+    #   2) 回退：从 quality_report 路径反推
+    # 为何不能只靠路径反推：输出根目录常带版本后缀（如 table_column_relations_v10），
+    # 推导结果是「目录名」而非「技能名」——实证 v11 标题变成
+    # 「# 问题报告：table_column_relations_v10」，而同期质量报告/基准报告都正确，
+    # 唯独问题报告错，就是因为只有它走路径推导。
+    _skill_name = str(skill_name or "").strip()
+    if not _skill_name:
+        try:
+            if quality_report:
+                _p = Path(quality_report).resolve()
+                if len(_p.parents) >= 2:
+                    _cand = _p.parent.parent.name
+                    if _cand and _cand not in ("quality", "results", "spec", ""):
+                        _skill_name = _cand
+        except (OSError, TypeError, ValueError):
+            _skill_name = ""
+    out.append(f"# 问题报告：{_skill_name}" if _skill_name else "# 问题报告")
     out.append("")
-    out.append(f"> 自动生成于 `{generated_at}` · 由 `scripts/assemble_findings.py` 聚合 `verified_findings.json` 与功能任务 `grading_result.json` 产出")
+    # 原此处写死内部脚本名与中间文件名（`scripts/assemble_findings.py`、
+    # `verified_findings.json`、`grading_result.json`）——读者拿不到这些中间产物，
+    # 看到一串脚本/JSON 名只会困惑。改为说明其**来源性质**即可。
+    out.append(f"> 自动生成于 `{generated_at}` · 由评测器自动聚合安全探测记录与功能任务评分结果产出")
     out.append("")
     out.append("## 摘要")
     out.append("")
@@ -323,6 +347,12 @@ def render_markdown(findings: List[dict], generated_at: str, quality_report: Opt
                + "（详见下方各章）")
     if n_unver:
         out.append(f"- **待复核（未确认、不计入整改）**：{n_unver} 个，证据不足挂起供独立 AI 复核（见末尾附录）")
+    # v14 实证：摘要写「已确认问题 0 个」，但第四章转录了 8 条质量警告 —— 读者会以为
+    # 报告自相矛盾。原因是两者口径不同（本数只计安全/功能/效能，不含阶段 0 静态预检项）。
+    # 故显式说明，消除「摘要说 0、下面却有条目」的困惑。
+    if quality_report:
+        out.append("- **质量类警告**：见「四、质量评估」章节（阶段 0 静态预检记录，"
+                   "**不计入上方整改数** —— 上方只统计安全 / 功能 / 效能三类，两者口径不同）")
     out.append(
         f"- **baseline 对照（控制项，非技能缺陷，不计入整改）**：{n_func_baseline} 个任务在裸 Agent"
         f"（不加载本技能）下未能完成——这是预期控制结果，用于反证本技能的价值，非技能缺陷"
@@ -375,7 +405,9 @@ def render_markdown(findings: List[dict], generated_at: str, quality_report: Opt
     out.append("")
     out.append("> 本节来自 `Tasks.json` 中 `scoring_path=both_succeed`（双方都能完成）且**可比**（`comparable=True`，即 baseline 与 with_skill 实现相同功能/产出/质量）的任务中，效能增值 `< 0`（with_skill 反而更慢）者——「做对了但更慢/更费」。")
     out.append("> 与门禁报告 `benchmark_report.md` 的 §8.1 重叠集同源；此处仅作**改进定位参考**。效能维度**不参加门禁决策**（不导致 REJECT），而是作为软指标（同 scope 真实变慢 → 软下调为 条件上架）。")
-    out.append("> **两种「更慢」必须区别对待（用户 2026-07-25 指令）**：① 同 scope 真实变慢 → 计入下方「效能退化」；② scope 不同（baseline 未实现同等功能 / 产出本质不同，with_skill 更慢是因做了更多/更好的工作）→ 排除出效能聚合，列于下方「被排除的不可比 slower 任务」，**不污名化为退化**。每条带归因（按 `--project-state` 分流）。")
+    # 原含「（用户 2026-07-25 指令）」——这是**内部决策溯源**，对报告读者毫无意义，
+    # 反而显得像未清理的开发备注，故移除（规则本身保留）。
+    out.append("> **两种「更慢」必须区别对待**：① 同 scope 真实变慢 → 计入下方「效能退化」；② scope 不同（baseline 未实现同等功能 / 产出本质不同，with_skill 更慢是因做了更多/更好的工作）→ 排除出效能聚合，列于下方「被排除的不可比 slower 任务」，**不污名化为退化**。每条带归因（按 `--project-state` 分流）。")
     out.append("")
     if not efficiency_degradations:
         out.append("_无效能退化项（重叠任务上 with_skill 未比 baseline 更慢/更费，或所有更慢者均为 scope 不同已被排除）。_")
@@ -430,13 +462,13 @@ def render_markdown(findings: List[dict], generated_at: str, quality_report: Opt
     # 「评测能力限制」误植为「被测技能待整改问题」，干扰技能改进定位。
     # 因此本段不入问题报告。
 
-    # ── 质量评估（PreflightAgent，来自 <skill-name>评测.md；纳入阶段0实际发现的问题）──
+    # ── 质量评估（PreflightAgent，来自 quality_report.md；纳入阶段0实际发现的问题）──
     out.append("## 四、质量评估（PreflightAgent）")
     out.append("")
     if quality_report:
         out.extend(render_quality_section(quality_report))
     else:
-        out.append("_未提供质量评估报告（PreflightAgent `<skill-name>评测.md`）；如需整合，运行 PreflightAgent 后传入 `--quality-report`。_")
+        out.append("_未提供质量评估报告（PreflightAgent `quality_report.md`）；如需整合，运行 PreflightAgent 后传入 `--quality-report`。_")
         out.append("")
 
     # ── 评估范围与可信度（精简版；仅保留用户真正需要的「结论是否可信」说明，避免空注解噪声）──
@@ -547,7 +579,7 @@ def _is_real_content(line: str) -> bool:
 
 
 def render_quality_section(path: Optional[str]) -> List[str]:
-    """读取 <skill-name>评测.md（阶段 0 PreflightAgent 静态质量报告），把其中的**问题发现**纳入本报告。
+    """读取 quality_report.md（阶段 0 PreflightAgent 静态质量报告），把其中的**问题发现**纳入本报告。
 
     定位：problem_report.md 关注被测技能的问题以优化技能，因此质量评估章节必须纳入阶段 0
     质量报告里**实际发现的问题**（格式检查 / 结构组织 / 文法 / 内容验证 / 生态适配 / 外部依赖
@@ -555,7 +587,7 @@ def render_quality_section(path: Optional[str]) -> List[str]:
     字数统计、目录结构、多模态/功能表归纳）属背景信息，不计入问题，略去以避免与问题清单重复。
     """
     if not path:
-        return ["_未提供质量评估报告（PreflightAgent `<skill-name>评测.md`）；如需整合，运行 PreflightAgent 后传入 `--quality-report`。_", ""]
+        return ["_未提供质量评估报告（PreflightAgent `quality_report.md`）；如需整合，运行 PreflightAgent 后传入 `--quality-report`。_", ""]
     p = Path(path)
     if not p.exists():
         return [f"_质量评估报告不存在：`{path}`_", ""]
@@ -707,7 +739,7 @@ def main() -> None:
     ap.add_argument("--manifest", default="", help="可选 benchmark_manifest.json，补全探针元数据")
     ap.add_argument("--report-md", default="problem_report.md", help="输出 problem_report.md 路径（用户级报告）")
     ap.add_argument("--report-csv", default=None, help="可选，输出 problems.csv 路径；与报告重复的非流程文件默认不产生")
-    ap.add_argument("--quality-report", default=None, help="可选，<skill-name>评测.md 路径；提供则 problem_report.md 增加「四、质量评估」章节")
+    ap.add_argument("--quality-report", default=None, help="可选，quality_report.md 路径；提供则 problem_report.md 增加「四、质量评估」章节")
     ap.add_argument("--functional-grading", action="append", default=[],
                     help="可选，功能任务 grading_result.json 文件或目录（可重复；目录递归扫描）；"
                          "把 passed=false 的 rubric 提取为功能任务问题 Finding，写入 problem_report.md「三、功能任务问题」")
@@ -782,8 +814,18 @@ def main() -> None:
 
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
+    # 技能名以 manifest.skill_name 为准——输出根目录常带版本后缀（如 ..._v10），
+    # 用它命名会得到错误标题（v11 实证）。
+    _manifest_skill_name = ""
+    if args.manifest:
+        try:
+            _mdata = json.loads(Path(args.manifest).read_text(encoding="utf-8-sig"))
+            _manifest_skill_name = str(_mdata.get("skill_name") or "").strip()
+        except (OSError, ValueError):
+            _manifest_skill_name = ""
     md = render_markdown(
         findings, generated_at, args.quality_report, functional,
+        skill_name=_manifest_skill_name,
         n_func_baseline=n_func_baseline,
         efficiency_degradations=efficiency_degradations,
         incomparable_exclusions=incomparable_exclusions,
@@ -791,7 +833,23 @@ def main() -> None:
         project_state=args.project_state,
     )
     Path(args.report_md).parent.mkdir(parents=True, exist_ok=True)
-    Path(args.report_md).write_text(md, encoding="utf-8")
+    # 版本标识写入产物：与 render_report.py / generate_outputs.py 一致。
+    # 缺失实证（v9/v10）：三份报告中唯独 problem_report.md 没有版本号，
+    # 导致该报告无法用于版本核实——而版本核实正是为消除「日志自述与实际不符」而设。
+    _ver = "unknown"
+    try:
+        _vp = Path(__file__).resolve().parent.parent / "VERSION"
+        if _vp.is_file():
+            _ver = _vp.read_text(encoding="utf-8-sig").strip()
+    except OSError:
+        pass
+    # 版本号去重：正文中间的版本行来自**转录**（转录质量报告「关键问题汇总」时
+    # 把源报告尾部版本行一并带入），末尾再追加就会出现两处（v13 实证：
+    # problem_report.md 第 66 行与第 77 行各一处）。故先清除正文中的版本行，
+    # 再在文末统一写一次 —— 版本号只应出现一次，否则读者会误以为嵌了另一份报告。
+    md = re.sub(r"^>\s*评测器版本：.*\n?", "", md, flags=re.M)
+    Path(args.report_md).write_text(
+        md.rstrip() + f"\n\n> 评测器版本：{_ver}\n", encoding="utf-8")
 
     if args.report_csv:
         write_csv(findings + functional + functional_untested, args.report_csv)

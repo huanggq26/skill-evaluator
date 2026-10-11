@@ -54,7 +54,14 @@ FORMAT_EXTS = {".json", ".jsonc", ".yaml", ".yml", ".toml", ".xml", ".csv"}
 SKIP_DIRS = {
     ".git", "node_modules", "__pycache__", ".venv", "venv",
     ".mypy_cache", ".pytest_cache", ".ruff_cache", ".vscode", ".idea",
+    # ── 不随发布包分发的内容（评测范围收敛，R12）──
+    # 依据：项目 SKILL.md「发布包不含任何开发态文件（治理区、治理入口、上级规格都不发布）」
+    # 及 openspec/config.yaml 第 4 条（规范区 / 治理区 / 平台机制目录均不随发布包分发）。
+    # 不发布的内容被评出来的问题，用户无从改进，属误报。
+    ".project", "openspec", ".codebuddy", ".opencode",
 }
+# 版本控制元数据与系统垃圾文件（同样不随发布包分发）
+SKIP_FILES = {".gitignore", ".gitattributes", ".gitmodules", ".DS_Store"}
 # 常见标准库顶层包（削减 undeclared_python_imports 误报；启发式、不完整）
 STDLIB_HINTS = {
     "os", "sys", "re", "json", "csv", "io", "time", "datetime", "math",
@@ -80,6 +87,30 @@ NODE_BUILTINS = {
 }
 
 
+def _read_text_any(fp) -> str:
+    """按 BOM 自动探测编码读取文本（UTF-8 BOM / UTF-16 LE / UTF-16 BE / 无 BOM）。
+
+    实证（v10）：被测技能 SKILL.md 为 **UTF-16 带 BOM**（Windows 常见产物）。
+    `utf-8` 与 `utf-8-sig` 都解不了 UTF-16 —— 抛 UnicodeDecodeError 后被
+    `except: continue` 静默跳过，frontmatter 解析为 None，下游据此判定
+    「缺少必需字段 name / description」并标为**严重级**缺陷。
+
+    而当次执行评测的 AI 通读 SKILL.md 后明确写道：
+    「frontmatter name 为 table_column_relations，与目录名一致」。
+    即字段**真实存在**，是解析失败导致的误报。故此处按 BOM 探测编码。
+    """
+    with open(fp, "rb") as fh:
+        raw = fh.read()
+    for bom, enc in (
+        (b"\xef\xbb\xbf", "utf-8-sig"),   # UTF-8 BOM
+        (b"\xff\xfe", "utf-16"),          # UTF-16 LE
+        (b"\xfe\xff", "utf-16"),          # UTF-16 BE
+    ):
+        if raw.startswith(bom):
+            return raw.decode(enc, errors="replace")
+    return raw.decode("utf-8", errors="replace")
+
+
 def strip_frontmatter(text):
     if text.startswith("---"):
         m = re.match(r"^---\s*\n(.*?\n)---\s*\n?", text, re.DOTALL)
@@ -98,6 +129,8 @@ def walk_files(root):
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
         for fn in filenames:
+            if fn in SKIP_FILES:
+                continue
             yield os.path.join(dirpath, fn)
 
 
@@ -190,8 +223,7 @@ def scan_machine_absolute_paths(root):
         if ext not in text_exts:
             continue
         try:
-            with open(fp, encoding="utf-8") as fh:
-                content = fh.read()
+            content = _read_text_any(fp)
         except Exception:
             continue
         rel = os.path.relpath(fp, root)
@@ -258,7 +290,7 @@ def scan_script_shebangs(root):
         if os.path.splitext(fp)[1].lower() not in SCRIPT_EXTS:
             continue
         try:
-            with open(fp, encoding="utf-8") as fh:
+            with open(fp, encoding="utf-8-sig") as fh:
                 first = fh.readline()
         except Exception:
             continue
@@ -298,7 +330,11 @@ def scan_crlf_scripts(root):
 REQUIRED_FM_FIELDS = ("name", "description")
 STANDARD_SECTIONS = ("Overview", "When to Use", "Common Pitfalls",
                      "Verification Checklist")
-NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+# 放宽：允许**下划线**。
+# 实证（v11）：被测技能 name 为 table_column_relations（下划线），与目录名一致、
+# 语义清晰，却被判「格式不合规」——而现实中存在大量下划线命名的技能。
+# 连字符与下划线同属合法分隔符，故一并接受；仍禁止大小写混用、空格与其他符号。
+NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 
 
 def _parse_fm_yaml(fm):
@@ -495,8 +531,13 @@ def main():
     else:
         skill_md = path
         path = os.path.dirname(os.path.abspath(skill_md))
-    with open(skill_md, encoding="utf-8") as f:
-        raw = f.read()
+    # 编码按 BOM 探测（UTF-8 BOM / UTF-16 LE / UTF-16 BE / 无 BOM）。
+    # 实证（v11，用户提供 SKILL.md 原件）：被测技能 SKILL.md 为 **UTF-8 带 BOM**(ef bb bf)。
+    # 用 encoding="utf-8" 读取会保留 \ufeff 前缀 → strip_frontmatter 匹配不到开头的 `---`
+    # → frontmatter 解析为空字符串 → yaml 解析空串返回 {}（**不算错误**，故 frontmatter_valid=True）
+    # → 但 {} 中当然没有 name/description → 误报「缺少必需字段（严重级）」。
+    # 此前只改了 walk_files 等扫描路径，**漏了本处主读取**，故修复一直未生效。
+    raw = _read_text_any(skill_md)
 
     fm, body = strip_frontmatter(raw)
 
@@ -511,6 +552,11 @@ def main():
 
     lines = raw.splitlines()
     open_count = closed_count = missing_lang = 0
+    # R47 可定位性：缺语言标签此前只记**计数**（`code_blocks_missing_lang`），
+    # 报告于是写「4 处代码块缺语言标签」却不告诉读者是哪 4 处，位置列只能填裸
+    # `SKILL.md`（v12 实证：读者拿着报告找不到地方改）。故同时记录行号明细，
+    # 使报告可给出 `SKILL.md:56` 这类精确定位。
+    missing_lang_lines: list[int] = []
     in_block = False
     block_lang = ""
     block_start = 0
@@ -527,6 +573,7 @@ def main():
                 block_lines = []
                 if not block_lang:
                     missing_lang += 1
+                    missing_lang_lines.append(idx)
             else:
                 in_block = False
                 blocks.append((block_lang, block_start, block_lines))
@@ -605,8 +652,7 @@ def main():
         if ext not in FORMAT_EXTS:
             continue
         try:
-            with open(fp, encoding="utf-8") as fh:
-                content = fh.read()
+            content = _read_text_any(fp)
         except Exception:
             continue
         external_format_files.append({
@@ -639,7 +685,7 @@ def main():
     py_imports = set()
     for fp in py_files:
         try:
-            with open(fp, encoding="utf-8") as fh:
+            with open(fp, encoding="utf-8-sig") as fh:
                 src = fh.read()
         except Exception:
             continue
@@ -693,7 +739,7 @@ def main():
             node_imports = set()
             for fp in node_files:
                 try:
-                    with open(fp, encoding="utf-8") as fh:
+                    with open(fp, encoding="utf-8-sig") as fh:
                         src = fh.read()
                 except Exception:
                     continue
@@ -724,8 +770,7 @@ def main():
         if not (set(parts) & {"templates", "references"}):
             continue
         try:
-            with open(fp, encoding="utf-8") as fh:
-                content = fh.read()
+            content = _read_text_any(fp)
         except Exception:
             continue
         for mm in re.finditer(r"\{\{\s*([^}]+?)\s*\}\}|\{%\s*([^%]+?)\s*%\}", content):
@@ -749,6 +794,7 @@ def main():
         "code_fence_closed": closed_count,
         "code_fence_balanced": (open_count == closed_count) and (not in_block),
         "code_blocks_missing_lang": missing_lang,
+        "code_blocks_missing_lang_lines": missing_lang_lines,
         "broken_file_links": broken_file_links,
         "dead_anchors": dead_anchors,
         "duplicate_anchor_slugs": duplicate_anchor_slugs,

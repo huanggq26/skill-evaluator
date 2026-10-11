@@ -162,7 +162,11 @@ def _advisory_function_table(skill_root: Path | None) -> str:
     if not skill_md.is_file():
         return "功能表需 AI 语义归纳服务场景（未找到 SKILL.md，无法收集依据材料）"
     try:
-        md_text = skill_md.read_text(encoding="utf-8")
+        # B3：与 extract_stats 保持一致，按 BOM 处理编码。
+        # 此前此处用 utf-8（不去 BOM），而 extract_stats 已用 BOM 探测 →
+        # 同一份 SKILL.md，两个脚本对 frontmatter description 给出**相反结论**
+        # （一个说缺失、一个说正常），报告自相矛盾。
+        md_text = skill_md.read_text(encoding="utf-8-sig")
     except OSError:
         return "功能表需 AI 语义归纳服务场景（SKILL.md 读取失败）"
 

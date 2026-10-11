@@ -76,17 +76,25 @@ def _probe_one(dep: dict) -> dict:
     }
     if not target:
         result.update(status="skipped", category="config_defect",
-                      message="manifest 未给出 target/url，无法探测")
-        result["retry"] = "补 manifest external_deps.target"
+                      message="被测技能未声明该依赖的端点地址（target/url），无法探测")
+        result["retry"] = "在被测技能中声明该依赖的**完整端点地址**（当前只有域名/通配，无法探测具体接口）"
         return result
+    # HTTP 方法（R20）：manifest 可为每个依赖显式声明 `method`；未声明时按 GET 探测。
+    # 实证：POST 端点被 GET 探测返回 405，曾被判为 contract_defect（技能自身缺陷）
+    # 并**硬拦截全流程**——属探测方法不匹配，非技能契约问题。
+    method = str(dep.get("method") or "GET").upper()
+    if method not in ("GET", "POST", "HEAD", "PUT", "PATCH"):
+        method = "GET"
+    method_declared = bool(dep.get("method"))
     url = _probe_url_for(dep)
     result["probe_url"] = url
+    result["probe_method"] = method
     if urllib is None:
         result.update(status="error", category="env_issue",
                       message="运行环境缺少 urllib，无法发起探测")
         return result
     try:
-        req = urllib.request.Request(url, method="GET",
+        req = urllib.request.Request(url, method=method,
                                      headers={"User-Agent": "skill-evaluator/dep-probe"})
         _t0 = time.time()
         with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
@@ -114,7 +122,54 @@ def _probe_one(dep: dict) -> dict:
             elif _templated or _base_only:
                 result.update(status="skip", category="config_defect", score=None,
                               message=f"HTTP {code}（模板化/基路径端点，需具体实例才能探测，非技能缺陷）")
-                result["retry"] = "在 manifest 为该依赖提供可探测的具体示例端点"
+                result["retry"] = "在被测技能的端点声明处给出**可访问的完整示例地址**（含具体路径，便于探测连通性）"
+            elif code == 405 and not method_declared:
+                # R32：GET 不被允许时，**先自动查明真实访问方式**，再决定归类。
+                # 背景（table_column_relations 实证）：8 个依赖中 6 个 GET 返回 405，
+                # 但同一主机 db_list 用 GET 返回 200——证明链路可达、无需授权，
+                # 405 的真实语义是「端点存在但不允许 GET」，多为 POST 接口。
+                # 此前直接按「方法不匹配」跳过，使可用性结论失真（既不知能否用，也不知该用什么方法）。
+                # 故此处按候选方法依次试探，命中 2xx 即以真实结果判定。
+                # 顺序说明：HEAD 无副作用故优先；其次 POST/PUT（查询类端点通常幂等，
+                # 且对象是技能自己声明的依赖，与随机站点无关）。
+                _alt_ok = None
+                for _alt_m in ("HEAD", "POST", "PUT"):
+                    try:
+                        _alt_req = urllib.request.Request(
+                            url, method=_alt_m,
+                            headers={"User-Agent": "skill-evaluator/dep-probe"},
+                        )
+                        _alt_t0 = time.time()
+                        with urllib.request.urlopen(_alt_req, timeout=10) as _alt_resp:  # noqa: S310
+                            _alt_code = _alt_resp.getcode()
+                        _alt_ms = round((time.time() - _alt_t0) * 1000.0, 1)
+                        if 200 <= _alt_code < 300:
+                            _alt_ok = (_alt_m, _alt_code, _alt_ms)
+                            break
+                    except urllib.error.HTTPError as _alt_e:  # 非 2xx 视为该方法不匹配，继续试下一个
+                        continue
+                    except (OSError, ValueError):
+                        continue
+                if _alt_ok:
+                    _m, _c, _ms = _alt_ok
+                    result["probe_method"] = _m
+                    result["http_status"] = _c
+                    result["latency_ms"] = _ms
+                    result.update(
+                        status="pass", category="contract_defect", score=100,
+                        message=f"依赖可达（HTTP {_c}；GET 返回 405，自动识别真实方法为 {_m}）",
+                    )
+                    result["retry"] = (
+                        f"建议在被测技能中标注该端点的 HTTP 方法（{_m}）：写在 SKILL.md 的端点声明或调用脚本中；"
+                        f"避免每次探测都自动试错"
+                    )
+                else:
+                    # 候选方法均不通：确属「未声明 method 导致无法探测」，
+                    # 归 config_defect：不拉低评分、不触发否决（R20）。
+                    result.update(status="skip", category="config_defect", score=None,
+                                  message=f"HTTP 405（端点可达但不允许 GET；已自动试 HEAD/POST/PUT 均不可达，"
+                                          f"被测技能未标注该端点的 HTTP 方法，探测方法不匹配，非技能契约缺陷）")
+                    result["retry"] = "在 SKILL.md（或调用该端点的脚本）中标注其 HTTP 方法（如 POST）后重测——当前以 GET 探测返回 405，无法判定端点是否可用"
             else:
                 # 其余 4xx 仍属结构性契约问题（端点不存在），标记 contract_defect 以便否决路径
                 result.update(status="fail", category="contract_defect", score=0,
@@ -143,7 +198,49 @@ def _probe_one(dep: dict) -> dict:
             elif _templated or _base_only:
                 result.update(status="skip", category="config_defect", score=None,
                               message=f"HTTP {code}（模板化/基路径端点，需具体实例才能探测，非技能缺陷）")
-                result["retry"] = "在 manifest 为该依赖提供可探测的具体示例端点"
+                result["retry"] = "在被测技能的端点声明处给出**可访问的完整示例地址**（含具体路径，便于探测连通性）"
+            elif code == 405 and not method_declared:
+                # R32：GET 不被允许时，**先自动查明真实访问方式**再决定归类。
+                # ⚠ 本分支位于 `except HTTPError` 内——urlopen 对 4xx 会抛异常，故**真实执行
+                # 路径在此**；try 块内的同名分支不可达（已标注，勿在其中重复实现）。
+                # 实证：table_column_relations 8 项依赖中 6 项 GET 返回 405，而同主机
+                # db_list 用 GET 返回 200 —— 链路可达、无需授权，405 的真实语义是
+                # 「端点存在但不允许 GET」（多为 POST 接口）。此前直接跳过使结论失真。
+                # 顺序：HEAD 无副作用故优先，其次 POST/PUT（对象为技能自声明的依赖）。
+                _alt_ok = None
+                for _alt_m in ("HEAD", "POST", "PUT"):
+                    try:
+                        _alt_req = urllib.request.Request(
+                            url, method=_alt_m,
+                            headers={"User-Agent": "skill-evaluator/dep-probe"},
+                        )
+                        _alt_t0 = time.time()
+                        with urllib.request.urlopen(_alt_req, timeout=10) as _alt_resp:  # noqa: S310
+                            _alt_code = _alt_resp.getcode()
+                        _alt_ms = round((time.time() - _alt_t0) * 1000.0, 1)
+                        if 200 <= _alt_code < 300:
+                            _alt_ok = (_alt_m, _alt_code, _alt_ms)
+                            break
+                    except (urllib.error.HTTPError, OSError, ValueError):
+                        continue
+                if _alt_ok:
+                    _m, _c, _ms = _alt_ok
+                    result["probe_method"] = _m
+                    result["http_status"] = _c
+                    result["latency_ms"] = _ms
+                    result.update(
+                        status="pass", category="contract_defect", score=100,
+                        message=f"依赖可达（HTTP {_c}；GET 返回 405，自动识别真实方法为 {_m}）",
+                    )
+                    result["retry"] = (
+                        f"建议在被测技能中标注该端点的 HTTP 方法（{_m}）：写在 SKILL.md 的端点声明或调用脚本中；"
+                        f"避免每次探测都自动试错"
+                    )
+                else:
+                    result.update(status="skip", category="config_defect", score=None,
+                                  message=f"HTTP 405（端点可达但不允许 GET；已自动试 HEAD/POST/PUT 均不可达，"
+                                          f"被测技能未标注该端点的 HTTP 方法，探测方法不匹配，非技能契约缺陷）")
+                    result["retry"] = "在 SKILL.md（或调用该端点的脚本）中标注其 HTTP 方法（如 POST）后重测——当前以 GET 探测返回 405，无法判定端点是否可用"
             else:
                 result.update(status="fail", category="contract_defect", score=0,
                               message=f"依赖返回客户端错误 HTTP {code}，疑似端点契约缺陷")
@@ -230,6 +327,30 @@ def main() -> int:
         "dimensions": dims,
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
     }
+    # R23：extract 提取到外部依赖却未被探测，会让报告误写「本次未声明外部依赖」——
+    # 真相是「提取到了但没进 manifest」，属静默错误（win 实证：extract 8 项 → probe 0 项）。
+    # 故此处显式比对，不一致即告警，绝不静默归零。
+    _extract_count = None
+    try:
+        _ext_path = Path(args.output).parent / "dependency_extract.json"
+        if _ext_path.is_file():
+            _extract_count = len(
+                json.loads(_ext_path.read_text(encoding="utf-8")).get("deps") or []
+            )
+    except (OSError, ValueError):
+        _extract_count = None
+    out["extract_external_count"] = _extract_count
+    out["consistent_with_extract"] = (
+        None if _extract_count is None else (_extract_count == len(deps))
+    )
+    if _extract_count and not deps:
+        print(
+            f"[dep_probe] ⚠ 不一致：依赖提取到 {_extract_count} 项外部依赖，"
+            f"但 manifest external_deps 为 0 项 → 本次未做任何外部探测，"
+            f"报告会误显示「未声明外部依赖」。请检查 extract_deps 的 --write-manifest 是否生效。",
+            file=sys.stderr,
+        )
+
     out_path = Path(args.output)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")

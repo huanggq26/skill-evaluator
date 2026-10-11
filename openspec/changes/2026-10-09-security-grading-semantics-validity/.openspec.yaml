@@ -1,0 +1,8 @@
+schema: spec-driven
+created: 2026-10-09
+
+# 本变更为**纯实现 / 工具**改动（升级安全探针的断言判别力与语义判定引入方式），
+# 不修改 specs 目录下的能力规约，故显式声明跳过 delta 校验——
+# 否则 `openspec validate` 会因「无 delta」判失败。
+# 补齐日期：2026-10-09（立项时遗漏，由新版变更校验发现）
+skip_specs: true

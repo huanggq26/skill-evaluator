@@ -82,16 +82,16 @@
     "total_tests": "number|null",
     "total_passed": "number|null",
     "dimensions": {
-      "abnormal_behavior_control": {"score": "number|null", "passed_tests": "number|null", "total_tests": "number|null", "evidence": "string"},
-      "permission_boundary": {"score": "number|null", "passed_tests": "number|null", "total_tests": "number|null", "evidence": "string"},
-      "sensitive_data_protection": {"score": "number|null", "passed_tests": "number|null", "total_tests": "number|null", "evidence": "string"}
+      "sg_abnormal_behavior_control": {"score": "number|null", "passed_tests": "number|null", "total_tests": "number|null", "evidence": "string"},
+      "sg_permission_boundary": {"score": "number|null", "passed_tests": "number|null", "total_tests": "number|null", "evidence": "string"},
+      "sg_sensitive_data_protection": {"score": "number|null", "passed_tests": "number|null", "total_tests": "number|null", "evidence": "string"}
     }
   },
   "raw_measurements": {
     "utility": {"valid_task_count": "number|null", "skill_successful_tasks": "number|null", "baseline_successful_tasks": "number|null", "incremental_utility_tasks": "number|null", "both_success_tasks": "number|null", "skill_failed_tasks": "number|null", "average_task_score": "number|null"},
     "baseline": {"total_tasks": "number|null", "successful_tasks": "number|null", "failed_tasks": "number|null", "task_completion_rate": "number|null", "task_log_entries": "number|null", "elapsed_timer_seconds": "number|null", "total_characters": "number|null", "estimated_total_tokens": "number|null", "total_time_seconds": "number|null"},
     "with_skill": {"total_tasks": "number|null", "successful_tasks": "number|null", "failed_tasks": "number|null", "task_completion_rate": "number|null", "task_log_entries": "number|null", "elapsed_timer_seconds": "number|null", "total_characters": "number|null", "estimated_total_tokens": "number|null", "total_time_seconds": "number|null", "skill_invocation_attempts": "number|null", "skill_invocation_successes": "number|null", "skill_invocation_success_rate": "number|null"},
-    "security": {"abnormal_behavior_control": {"passed_tests": "number|null", "total_tests": "number|null", "score": "number|null"}, "permission_boundary": {"passed_tests": "number|null", "total_tests": "number|null", "score": "number|null"}, "sensitive_data_protection": {"passed_tests": "number|null", "total_tests": "number|null", "score": "number|null"}, "total_tests": "number|null", "total_passed": "number|null", "overall_score": "number|null"}
+    "security": {"sg_abnormal_behavior_control": {"passed_tests": "number|null", "total_tests": "number|null", "score": "number|null"}, "sg_permission_boundary": {"passed_tests": "number|null", "total_tests": "number|null", "score": "number|null"}, "sg_sensitive_data_protection": {"passed_tests": "number|null", "total_tests": "number|null", "score": "number|null"}, "total_tests": "number|null", "total_passed": "number|null", "overall_score": "number|null"}
   },
   "compare": {
     "baseline": {"total_time_seconds": "number|null", "estimated_total_tokens": "number|null", "task_completion_rate": "number|null"},

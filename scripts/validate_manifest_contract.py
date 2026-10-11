@@ -23,6 +23,8 @@ import re
 import sys
 from pathlib import Path
 
+from _common import TAG_TO_ASI, derive_security_group, lenses_for_asi, MIN_ASI_COVERAGE
+
 # RUBRIC_COUNT 权威值见 references/config.md（评分阈值节，=10）。
 # 本守卫按 AGENTS_RULES「引用而非硬编码」纪律，以常量变量承载并注明来源。
 RUBRIC_COUNT = 10  # ← 与 config.md RUBRIC_COUNT 一致；如需改请同步 config.md
@@ -354,19 +356,11 @@ def main():
     #   • skill_surface_tags 是每个攻击面标签的唯一事实源（阶段 A 打标产出）；
     #   • 每个非空 tag 必须有 ≥1 个 security_probes 的 primary_asi_category 命中该 tag 映射的 ASI 集合，
     #     否则即「应测而漏测」→ REJECT 语义（与 cacu_total_score 漏测否决同源）；
-    #   • 本守卫只做结构化映射断言，不依赖语义：tag→ASI 映射取自下方静态表（与 stage1_sample.md 步骤 1.5 一致）。
+    #   • 本守卫只做结构化映射断言，不依赖语义：tag→ASI 映射取自单一权威源 `_common.TAG_TO_ASI`，
+    #     本文件内禁止再写第二份映射值（历史教训：雷同副本靠注释互称一致，无机器校验 → 漂移）。
     #   • 若 skill_surface_tags 为空 → 视为无安全面，安全探测整体跳过（合法，不报错）。
-    _TAG_TO_ASI = {
-        "exec_code": {"ASI01", "ASI05"},
-        "external_dep": {"ASI02", "ASI08"},
-        "fs_net_cred": {"ASI03", "ASI07", "ASI10"},
-        "secret_memory": {"ASI06", "ASI09"},
-        "user_content": {"ASI04", "ASI07"},
-        "agent_comms": {"ASI09", "ASI10"},
-        "prompt_intent": {"ASI04", "ASI07"},
-        "tool_calls": {"ASI01", "ASI02", "ASI03"},
-        "system_instruction": {"ASI04", "ASI10"},
-    }
+    # T-01/G16：唯一取值来源（内联字面量已删除，禁止在本守卫内写死映射值）。
+    _TAG_TO_ASI = TAG_TO_ASI
     surface_tags = d.get("skill_surface_tags") or []
     if surface_tags:
         # 规范化：支持 list[str] 或 list[{"tag":...}] 两种形态
@@ -401,6 +395,64 @@ def main():
                 f"[E24] 安全漏测阻断：skill_surface_tags 命中 {missing_tags} "
                 f"但 security_probes 未覆盖其映射 ASI（{sorted(allowed for t in missing_tags for allowed in _TAG_TO_ASI[t])}）。"
                 f"每个攻击面标签必须落地 ≥1 个对应安全探测（封死漏测）。"
+            )
+
+    # ---- 覆盖面度量与下限告警（T-12 / 在途 N7）----
+    # 覆盖面由"命中标签 → ASI → 去重"决定，实测由固定 9 降至 6。此前无度量、无告警，
+    # 属静默失效。此处度量并在低于下限时告警（不阻断，避免历史产物全部卡死）。
+    _covered = sorted({
+        str(p.get("primary_asi_category")).upper()
+        for p in sp if isinstance(p, dict) and p.get("primary_asi_category")
+    })
+    if len(_covered) < MIN_ASI_COVERAGE:
+        print(
+            f"[WARN][E30] ASI 覆盖面低于下限：本次覆盖 {len(_covered)} 个 ASI，"
+            f"低于下限 {MIN_ASI_COVERAGE}（原始固定配额基线 9 探测 / 9 ASI）。"
+            f"已覆盖：{_covered}；未覆盖："
+            f"{sorted(set(f'ASI{i:02d}' for i in range(1, 11)) - set(_covered))}"
+            f"。阈值见 _common.MIN_ASI_COVERAGE（可按领域决策调整）。",
+            file=sys.stderr,
+        )
+
+    # ---- 守卫 10b：security_group 值必须与单一权威源推导一致（E28，封死归桶漂移）----
+    # 历史教训：auto_security_spec._ASI_TO_GROUP 曾按编号三等分，与 Mapping-Matrix 有 6/10 项
+    # 不一致并造成实测错分（v16 probe_asi03 落 abnormal 应为 permission）；原要求机器校验实为空账。
+    for p in sp:
+        if not isinstance(p, dict):
+            continue
+        pac = p.get("primary_asi_category")
+        sg = p.get("security_group")
+        if not pac or not sg:
+            continue
+        try:
+            expected = derive_security_group(pac)
+        except ValueError:
+            errors.append(
+                f"[E28] 安全探测 {p.get('id')!r} 的 primary_asi_category={pac!r} 无法推导安全评分桶"
+            )
+            continue
+        if str(sg).strip() != expected:
+            errors.append(
+                f"[E28] 安全归桶不一致：探测 {p.get('id')!r} 的 security_group={sg!r}，"
+                f"但由 primary_asi_category={pac!r} 推导应为 {expected!r}"
+                f"（单一权威源：_common.derive_security_group，依据 Mapping-Matrix「security_group 推导规则」）"
+            )
+
+    # ---- 守卫 10c：supporting_dimensions 不得为空（E29，封死"辅助深化"空转）----
+    # T-05：该字段原为透传字段恒空，导致传统视角的评审深化从未发生。
+    # 现在由 generate_probe_scaffolds 按反查表自动补齐，此处校验其非空且与反查表一致。
+    for p in sp:
+        if not isinstance(p, dict):
+            continue
+        pac = p.get("primary_asi_category")
+        if not pac:
+            continue
+        dims = p.get("supporting_dimensions") or []
+        if not dims:
+            errors.append(
+                f"[E29] 安全探测 {p.get('id')!r} 的 supporting_dimensions 为空："
+                f"传统视角的评审深化将无从检索（应由 primary_asi_category={pac!r} 反查补齐，"
+                f"推荐 {lenses_for_asi(pac)}）"
             )
 
     # ---- 守卫 11：性能标记派生与落地断言（E26，封死效能漏测/失真）----

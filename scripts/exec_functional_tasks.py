@@ -44,8 +44,27 @@ def _norm_base(url: str) -> str:
     return m.group(1) if m else url.rstrip("/")
 
 
+# 脚本目录（导入时解析一次）：供 _run 把相对路径解析为绝对路径。
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+
+
 def _run(cmd: list[str]) -> int:
-    r = subprocess.run(cmd, capture_output=True, text=True)
+    """执行命令，并把 `scripts/xxx.py` 形式的相对路径解析为绝对路径。
+
+    修复实证（v8，由 win 端评测执行者发现并修复，此处整合）：
+    原实现意图是解析相对路径，但只检查 `cmd[0]`——而命令格式是
+    `["python", "scripts/foo.py", ...]`，脚本路径在 **cmd[1]**，永远匹配不到；
+    且直接拼接会产生 `scripts/scripts/foo.py` 双重路径。
+    后果：cwd 不在技能 scripts 目录时（评测时 cwd 通常是输出目录）
+    → FileNotFoundError → 阶段 2/3 无法执行。
+    """
+    resolved_cmd: list[str] = []
+    for arg in cmd:
+        if isinstance(arg, str) and arg.startswith("scripts/"):
+            resolved_cmd.append(str(_SCRIPTS_DIR / arg.replace("scripts/", "", 1)))
+        else:
+            resolved_cmd.append(arg)
+    r = subprocess.run(resolved_cmd, capture_output=True, text=True)
     if r.returncode != 0:
         sys.stderr.write(r.stderr)
     return r.returncode
@@ -155,6 +174,11 @@ def _call_api(endpoint: str, timeout: int = 20) -> tuple[int, str]:
 
 
 def _write_result(task_dir: Path, payload: dict) -> None:
+    # T-09：声明本产物由哪条写入路径产出。
+    #   · script_direct = 流水线脚本真实调用被测技能声明的端点后落盘（客观、可复现）
+    #   · agent_session = 由 Agent 真实执行技能后撰写（含执行者自身的摘要/表达水平）
+    # 二者产物性质不同，跨技能/跨版本对比**只允许同 execution_path 相比**。
+    payload.setdefault("execution_path", "script_direct")
     (task_dir / "result.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
@@ -421,13 +445,13 @@ def exec_one(task_id: str, task_dir: Path, mode: str, skill_name: str,
 
     # 1) 生成 task_metrics 骨架
     tm_path = res_dir / "task_metrics.json"
-    if _run(["python3", "scripts/generate_task_metrics.py",
+    if _run([sys.executable, "scripts/generate_task_metrics.py",
              "--output", str(tm_path), "--task-id", task_id, "--mode", metric_mode]) != 0:
         return 1
 
     # 2) 时间戳：start
     start_ts = res_dir / "start_timestamp.json"
-    if _run(["python3", "scripts/write_system_timestamp.py", "--output", str(start_ts)]) != 0:
+    if _run([sys.executable, "scripts/write_system_timestamp.py", "--output", str(start_ts)]) != 0:
         return 1
 
     t0 = time.time()
@@ -534,11 +558,11 @@ def exec_one(task_id: str, task_dir: Path, mode: str, skill_name: str,
 
     # 3) 时间戳：end
     end_ts = res_dir / "end_timestamp.json"
-    if _run(["python3", "scripts/write_system_timestamp.py", "--output", str(end_ts)]) != 0:
+    if _run([sys.executable, "scripts/write_system_timestamp.py", "--output", str(end_ts)]) != 0:
         return 1
 
     # 4) 回填耗时
-    if _run(["python3", "scripts/backfill_task_duration.py",
+    if _run([sys.executable, "scripts/backfill_task_duration.py",
              "--task-metrics", str(tm_path), "--start", str(start_ts),
              "--end", str(end_ts), "--task-id", task_id, "--mode", metric_mode]) != 0:
         return 1
@@ -647,7 +671,7 @@ def main() -> int:
 
     # 生成阶段级 stage_metrics 骨架
     stage_metrics = exec_mode_dir / "stage_metrics.json"
-    _run(["python3", "scripts/generate_stage_metrics.py",
+    _run([sys.executable, "scripts/generate_stage_metrics.py",
           "--output", str(stage_metrics), "--mode", args.mode])
 
     print(f"[exec] 完成 {args.mode}：{len(tasks)-failures}/{len(tasks)} 成功，{failures} 失败")

@@ -514,16 +514,16 @@ def _load_manifest_summary(samples_dir: Path, tasks_data: dict[str, Any]) -> dic
     )
 
     security_group_counts = {
-        "abnormal_behavior_control": summary.get("abnormal_tests"),
-        "permission_boundary": summary.get("permission_tests"),
-        "sensitive_data_protection": summary.get("sensitive_tests"),
+        "sg_abnormal_behavior_control": summary.get("abnormal_tests"),
+        "sg_permission_boundary": summary.get("permission_tests"),
+        "sg_sensitive_data_protection": summary.get("sensitive_tests"),
     }
 
     if not any(value for value in security_group_counts.values()):
         group_name_map = {
-            "abnormal": "abnormal_behavior_control",
-            "permission": "permission_boundary",
-            "sensitive": "sensitive_data_protection",
+            "abnormal": "sg_abnormal_behavior_control",
+            "permission": "sg_permission_boundary",
+            "sensitive": "sg_sensitive_data_protection",
         }
         for raw_group, count in security_counts.items():
             mapped = group_name_map.get(raw_group, raw_group)
@@ -587,9 +587,9 @@ def _format_security_scope(summary: dict[str, Any]) -> str:
     total = summary.get("total_security", 0)
     group_counts = summary.get("security_group_counts", {})
     canonical_order = [
-        ("abnormal_behavior_control", "异常行为管控"),
-        ("permission_boundary", "权限边界"),
-        ("sensitive_data_protection", "敏感数据保护"),
+        ("sg_abnormal_behavior_control", "异常行为管控"),
+        ("sg_permission_boundary", "权限边界"),
+        ("sg_sensitive_data_protection", "敏感数据保护"),
     ]
     parts = []
     present_groups = 0
@@ -731,9 +731,9 @@ def _percent_text(value: Any) -> str:
 
 def _canonical_dimension_name(raw: str) -> str:
     mapping = {
-        "abnormal_behavior_control": "异常行为管控",
-        "permission_boundary": "权限边界",
-        "sensitive_data_protection": "敏感数据保护",
+        "sg_abnormal_behavior_control": "异常行为管控",
+        "sg_permission_boundary": "权限边界",
+        "sg_sensitive_data_protection": "敏感数据保护",
     }
     return mapping.get(raw, raw.replace("_", " ").strip().title())
 
@@ -1481,9 +1481,9 @@ def _build_utility_summary(
 def _build_security_evidence(scores: dict[str, Any]) -> dict[str, str]:
     security_tasks = [item for item in scores.get("security_tasks", []) if isinstance(item, dict)]
     by_dimension: dict[str, list[dict[str, Any]]] = {
-        "abnormal_behavior_control": [],
-        "permission_boundary": [],
-        "sensitive_data_protection": [],
+        "sg_abnormal_behavior_control": [],
+        "sg_permission_boundary": [],
+        "sg_sensitive_data_protection": [],
     }
     unknown_dimension_rows: list[dict[str, Any]] = []
 
@@ -1557,7 +1557,49 @@ def _load_security_probe_objectives(*roots: Path | None) -> dict[str, str]:
                     out[pid] = obj
             if out:
                 return out
+
+    # R24 兜底：auto_security_spec.json 可能未生成（阶段 1.5 未执行时该文件缺失，
+    # 实测 win 产物 quality/results/ 下即无此文件），此时 objective 全为空 →
+    # 报告回退成「具体探测点见该探测 TaskDescription」这类内部术语，读者看不懂。
+    # 探针定义文件 sample/security/<group>/<probe_id>/TaskDescription.md 里始终有
+    # 「## Objective」段（探针生成的必然产物），故作为二级权威源扫描兜底。
+    for root in roots:
+        if root is None:
+            continue
+        sec_root = root / "security" if (root / "security").is_dir() else None
+        if sec_root is None and (root.parent / "security").is_dir():
+            sec_root = root.parent / "security"
+        if sec_root is None:
+            continue
+        out = {}
+        for md in sorted(sec_root.glob("*/*/TaskDescription.md")):
+            pid = md.parent.name
+            obj = _extract_probe_objective_from_md(md)
+            if pid and obj:
+                out[pid] = obj
+        if out:
+            return out
     return {}
+
+
+def _extract_probe_objective_from_md(md: "Path") -> str:
+    """从探针 TaskDescription.md 的「## Objective」段提取「测什么风险」。"""
+    try:
+        text = md.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    lines = text.splitlines()
+    for i, ln in enumerate(lines):
+        if ln.strip().lower().startswith("## objective"):
+            for nxt in lines[i + 1:]:
+                s = nxt.strip()
+                if not s:
+                    continue
+                if s.startswith("#"):
+                    break
+                return s
+            break
+    return ""
 
 
 def _build_security_summary(
@@ -1605,9 +1647,9 @@ def _build_security_summary(
                 "安全判断与本次基准中实际执行的具体工作流挂钩，而非仅依赖抽象的策略声明。"
             )
         for dimension_key in (
-            "abnormal_behavior_control",
-            "permission_boundary",
-            "sensitive_data_protection",
+            "sg_abnormal_behavior_control",
+            "sg_permission_boundary",
+            "sg_sensitive_data_protection",
         ):
             evidence = _ensure_sentence(security_evidence.get(dimension_key))
             if evidence:
@@ -1821,18 +1863,18 @@ def _build_template_payload(
     security_block["total_tests"] = security_metrics.get("total_tests")
     security_block["total_passed"] = security_metrics.get("total_passed")
     security_dimensions = security_block["dimensions"]
-    security_dimensions["abnormal_behavior_control"]["score"] = security_metrics.get("abnormal_behavior_control", {}).get("score")
-    security_dimensions["abnormal_behavior_control"]["passed_tests"] = security_metrics.get("abnormal_behavior_control", {}).get("passed_tests")
-    security_dimensions["abnormal_behavior_control"]["total_tests"] = security_metrics.get("abnormal_behavior_control", {}).get("total_tests")
-    security_dimensions["abnormal_behavior_control"]["evidence"] = security_evidence["abnormal_behavior_control"]
-    security_dimensions["permission_boundary"]["score"] = security_metrics.get("permission_boundary", {}).get("score")
-    security_dimensions["permission_boundary"]["passed_tests"] = security_metrics.get("permission_boundary", {}).get("passed_tests")
-    security_dimensions["permission_boundary"]["total_tests"] = security_metrics.get("permission_boundary", {}).get("total_tests")
-    security_dimensions["permission_boundary"]["evidence"] = security_evidence["permission_boundary"]
-    security_dimensions["sensitive_data_protection"]["score"] = security_metrics.get("sensitive_data_protection", {}).get("score")
-    security_dimensions["sensitive_data_protection"]["passed_tests"] = security_metrics.get("sensitive_data_protection", {}).get("passed_tests")
-    security_dimensions["sensitive_data_protection"]["total_tests"] = security_metrics.get("sensitive_data_protection", {}).get("total_tests")
-    security_dimensions["sensitive_data_protection"]["evidence"] = security_evidence["sensitive_data_protection"]
+    security_dimensions["sg_abnormal_behavior_control"]["score"] = security_metrics.get("sg_abnormal_behavior_control", {}).get("score")
+    security_dimensions["sg_abnormal_behavior_control"]["passed_tests"] = security_metrics.get("sg_abnormal_behavior_control", {}).get("passed_tests")
+    security_dimensions["sg_abnormal_behavior_control"]["total_tests"] = security_metrics.get("sg_abnormal_behavior_control", {}).get("total_tests")
+    security_dimensions["sg_abnormal_behavior_control"]["evidence"] = security_evidence["sg_abnormal_behavior_control"]
+    security_dimensions["sg_permission_boundary"]["score"] = security_metrics.get("sg_permission_boundary", {}).get("score")
+    security_dimensions["sg_permission_boundary"]["passed_tests"] = security_metrics.get("sg_permission_boundary", {}).get("passed_tests")
+    security_dimensions["sg_permission_boundary"]["total_tests"] = security_metrics.get("sg_permission_boundary", {}).get("total_tests")
+    security_dimensions["sg_permission_boundary"]["evidence"] = security_evidence["sg_permission_boundary"]
+    security_dimensions["sg_sensitive_data_protection"]["score"] = security_metrics.get("sg_sensitive_data_protection", {}).get("score")
+    security_dimensions["sg_sensitive_data_protection"]["passed_tests"] = security_metrics.get("sg_sensitive_data_protection", {}).get("passed_tests")
+    security_dimensions["sg_sensitive_data_protection"]["total_tests"] = security_metrics.get("sg_sensitive_data_protection", {}).get("total_tests")
+    security_dimensions["sg_sensitive_data_protection"]["evidence"] = security_evidence["sg_sensitive_data_protection"]
 
     utility_raw = template["raw_measurements"]["utility"]
     score_utility_raw = raw_measurements.get("utility", {}) if isinstance(raw_measurements.get("utility"), dict) else {}
@@ -1846,7 +1888,7 @@ def _build_template_payload(
                 target[key] = stage_payload.get(key)
 
     security_target = template["raw_measurements"]["security"]
-    for dim_key in ("abnormal_behavior_control", "permission_boundary", "sensitive_data_protection"):
+    for dim_key in ("sg_abnormal_behavior_control", "sg_permission_boundary", "sg_sensitive_data_protection"):
         for sub_key in security_target[dim_key]:
             security_target[dim_key][sub_key] = security_metrics.get(dim_key, {}).get(sub_key)
     security_target["total_tests"] = security_metrics.get("total_tests")
@@ -1952,6 +1994,12 @@ def _build_benchmark_report(
                         break
                 if _tbl_lines:
                     _ft_overview = "\n".join(_tbl_lines)
+                else:
+                    # R35：AI 以**纯文本段落**填写功能表时（非表格行），不得降级为「未完成 AI 归纳」。
+                    # 实证（v5）：功能表填的是一段服务场景描述，无 `|` 表格行 → 本分支落空 →
+                    # §4.1 显示「未完成 AI 归纳」，与质量报告功能表**不同源**（质量报告里明明有内容）。
+                    # 纯文本同样是对外有效的服务场景描述，直接采用。
+                    _ft_overview = _ft_text
     # task_map（AI 裁定功能表时同步标注）：服务场景 → 对应功能任务 + 不可执行说明。
     # 存在时 §4 渲染为**整合表**（每条功能带验证结果列）；缺失时降级为总览+验证分表。
     _ft_task_map: dict | None = None
@@ -1971,6 +2019,31 @@ def _build_benchmark_report(
     functional_tasks = [item for item in scores.get("tasks", []) if isinstance(item, dict)]
     # 人话能力名映射：供 §4 表格直译任务 ID，避免只堆编号
     manifest = _read_json(samples_dir / "benchmark_manifest.json")
+
+    # 安全判据状态检测（R44）：若 Grader 判据仍是 json_schema 模板态，报告里的
+    # 「全部通过」仅代表 verification.json 结构合规，并非真实安全测试结论。
+    # 不显式告知即构成**隐蔽误导**——「通过」看起来是好消息，没人会去质疑。
+    # 实证（v11）：6 个探测均显示「通过（10/10 项检查点通过）」，
+    # 而 grader_manifest 中 R1–R10 的 type 全为 json_schema。
+    _sec_judge_state = ""
+    try:
+        _gm_path = None
+        for _p in sorted((samples_dir / "security").rglob("grader_manifest.json")):
+            _gm_path = _p
+            break
+        if _gm_path is not None:
+            _gd = json.loads(_gm_path.read_text(encoding="utf-8-sig"))
+            _rs = _gd.get("rubrics") or _gd.get("checks") or []
+            _types = {str(r.get("type") or "") for r in _rs if isinstance(r, dict)}
+            if _types and _types <= {"json_schema", "schema"}:
+                _sec_judge_state = (
+                    "- ⚠️ **本轮安全判据为模板态**：Grader 的 R1–R10 均为 JSON 结构校验，"
+                    "「全部通过」仅表示 `verification.json` 结构合规，**不代表已通过真实安全测试**。"
+                    "需先生成语义判据再作安全结论：`python scripts/gen_semantic_rubrics.py "
+                    "--sample-dir <sample-dir>`。"
+                )
+    except (OSError, ValueError):
+        _sec_judge_state = ""
     _cap_map: dict[str, str] = {}
     _meta_map: dict[str, dict] = {}
     # 用户视角行为映射（模块级 _HUMAN_CAP，与 problem_report 保持一致），不暴露被测技能内部接口/参数名
@@ -1979,7 +2052,23 @@ def _build_benchmark_report(
         for _t in manifest.get("functional_tasks", []):
             if isinstance(_t, dict) and _t.get("id"):
                 _tid = str(_t["id"])
-                _cap_map[_tid] = _t.get("capability") or _t.get("title") or _tid
+                _raw_cap = str(_t.get("capability") or _t.get("title") or _tid)
+                # R36：剥离前导序号（如「2. 快速通道策略」）。
+                # 实证：功能清单第一条无编号、第二条带「2. 」前缀，
+                # 表格里一行有编号一行没有，读者误以为是层级关系。
+                _cap_map[_tid] = re.sub(r"^\s*\d+\s*[.、)]\s*", "", _raw_cap)
+                # §4.2/4.3 与功能表同源：若功能表提供了 task_map（服务场景 → 任务 ID），
+                # 则以**服务场景名**作为展示名。否则结果解读会沿用 manifest 的原始标题，
+                # 与 §4 表格（已用服务场景）不一致——实证 v11：表格显示「服务场景 1：…」，
+                # 而 4.2 仍是「本技能用于查询…」「快速通道策略…」，两处对不上。
+                if isinstance(_ft_task_map, dict) and _ft_task_map:
+                    _scene_names: list[str] = []
+                    for _scene, _tids in _ft_task_map.items():
+                        _tl = _tids if isinstance(_tids, list) else [_tids]
+                        if any(str(x).strip() == _tid for x in _tl):
+                            _scene_names.append(str(_scene).strip())
+                    if _scene_names:
+                        _cap_map[_tid] = "、".join(_scene_names)
                 _meta_map[_tid] = {"capability": _cap_map[_tid], "objective": _t.get("objective", "")}
                 # 依赖被测技能私有知识源（专用 API/接口/方法）的任务，baseline 在屏蔽下不可比
                 if _t.get("requires_proprietary_source") is True:
@@ -2072,15 +2161,35 @@ def _build_benchmark_report(
     # ── 未实测判定（与 §4.1 / assemble_findings._is_untested 同源，上移供 §1/§3/§4 共用）──
     # 背景（ERR-022 实证）：此前 §3/§1 把「全部任务未实测」错误归因为「baseline 做不到的
     # 能力缺口」，§4 表格把未实测渲染成「否 / 0.00」（失败语义）——同一事实三种矛盾表述。
+    def _resolve_task_dir(_exec_dir, _mode: str, _tid: str) -> "Path | None":
+        """定位某个任务的目录，兼容 exec 根目录的两种层级形态。
+
+        实测（table_column_relations v4）：exec 产物为 **两层嵌套**
+        `exec/with_skill/with_skill/tasks/FT01/`，而旧的路径约定只拼一层
+        `exec/with_skill/tasks/FT01/` → 读取失配 → 未实测判定全部失效，进而把
+        「评测未执行」渲染成「技能未能交付该能力」（§4.3 与 §4.2 自相矛盾的根因）。
+        故此处对两种形态都尝试，按下述顺序取第一个存在的。
+        """
+        base = Path(_exec_dir) / _mode
+        for cand in (
+            base / "tasks" / _tid,
+            base / _mode / "tasks" / _tid,
+            Path(_exec_dir) / "tasks" / _tid,
+        ):
+            if cand.is_dir():
+                return cand
+        return None
+
     def _untested_reason_for(_exec_dir, _tid: str) -> str:
         """读取 with_skill 执行产物，判断该任务是否「未真实执行」。
 
         result.json 的 status 为 unsupported/blocked 且 summary/notes 含评测侧限制
         说明时，视为未实测。用于避免把「评测未执行」渲染成「技能未能交付该能力」。
         """
+        _tdir = _resolve_task_dir(_exec_dir, "with_skill", _tid)
         try:
-            rp = Path(_exec_dir) / "with_skill" / "tasks" / _tid / "results" / "result.json"
-            if not rp.is_file():
+            rp = (_tdir / "results" / "result.json") if _tdir else None
+            if rp is None or not rp.is_file():
                 return ""
             res = json.loads(rp.read_text(encoding="utf-8"))
         except (OSError, TypeError, ValueError):
@@ -2092,6 +2201,47 @@ def _build_benchmark_report(
         for marker in ("未执行", "无法自动确定", "未伪造", "屏蔽态", "未真实执行"):
             if marker in blob:
                 return res.get("summary") or marker
+        return ""
+
+    def _baseline_unavailable_reason(_exec_dir, _tid: str) -> str:
+        """R22：识别 baseline「假成功」——子代理拿不到真实数据时写入**示例结果**却判成功。
+
+        实证（win 评测 table_column_relations）：
+          worklog 写「已写入符合 output_contract 结构的示例结果，标注 status=baseline_unavailable」
+          而 task_metrics.json 却是 success=True、status=completed_with_limitations。
+        后果：报告显示「双方均可完成」、增量覆盖归零、效能对比变成
+          「真实结果 vs 示例结果」不可比，总分失真。故此处如实标注，不沿用 success 字段。
+
+        判据（任一命中即视为未真实执行）：
+          1) task_metrics.json 的 status 含 limitation/unavailable/partial/incomplete；
+          2) result.json 的 status 为 baseline_unavailable / placeholder；
+          3) result.json 文本含「示例结果 / 未获取真实数据 / 占位」等标记。
+        """
+        base = _resolve_task_dir(_exec_dir, "baseline", _tid)
+        try:
+            if base is None:
+                return ""
+            tm = base / "task_metrics.json"
+            if tm.is_file():
+                st = str(json.loads(tm.read_text(encoding="utf-8")).get("status") or "").lower()
+                if any(k in st for k in ("limitation", "unavailable", "partial", "incomplete")):
+                    return st
+            rp = base / "results" / "result.json"
+            if rp.is_file():
+                res = json.loads(rp.read_text(encoding="utf-8"))
+                if str(res.get("status") or "").lower() in (
+                    "baseline_unavailable", "unavailable", "placeholder",
+                ):
+                    return str(res.get("status"))
+                blob = " ".join([
+                    str(res.get("summary") or ""),
+                    " ".join(res.get("notes") or []),
+                ])
+                for marker in ("示例结果", "baseline_unavailable", "未获取真实数据", "占位"):
+                    if marker in blob:
+                        return marker
+        except (OSError, TypeError, ValueError):
+            return ""
         return ""
 
     _n_untested_total = sum(
@@ -2141,14 +2291,17 @@ def _build_benchmark_report(
                 "客观上无法独立完成的能力缺口（即技能独有的用户价值），因此效能（耗时/开销）对比不适用，无样本可比对。"
             )
     else:
+        # 修复：本模板用 .format() 传值（见下方 format(...) 实参），模板内**只能写参数名**。
+        # 此前写成 {_count_text(_comp_base_time)} 这类「函数调用形式」，.format() 不支持表达式求值，
+        # 会把整串当成字段名 → KeyError，导致 _comp_count > 0（正常情况）时报告生成直接崩溃。
         _sec3_body = (
             "本次可比任务共 `{_comp_count}` 个（双方都能完成，纳入效能对比）：\n\n"
             "| 指标 | baseline（裸 Agent） | with_skill（本技能） | 变化 |\n"
             "| --- | --- | --- | --- |\n"
-            "| `总耗时（可比任务，单位：秒）` | {_count_text(_comp_base_time)} 秒 | "
-            "{_count_text(_comp_skill_time)} 秒 | {_change_phrase(_comp_time_change, '增加', '减少')} |\n\n"
+            "| `总耗时（可比任务，单位：秒）` | {_comp_base_time} 秒 | "
+            "{_comp_skill_time} 秒 | {_change_phrase} |\n\n"
             "- 上表「总耗时」仅统计双方都完成且裸 Agent 在屏蔽技能内部知识后仍能完成的可比任务；"
-            "依赖技能私有知识源、裸 Agent 做不成的任务已排除，避免对比误导。完整阶段总计见 §8。"
+            "依赖技能私有知识源、裸 Agent 做不成的任务已排除，避免对比误导。完整阶段总计见 §9。"
         ).format(
             _comp_count=_comp_count,
             _comp_base_time=_count_text(_comp_base_time),
@@ -2310,11 +2463,15 @@ def _build_benchmark_report(
         # 依赖专用源的任务：baseline 在屏蔽被测技能内部知识后结构上无法完成，
         # 故 baseline 标记为「否（依赖专用源，裸 Agent 屏蔽下无法完成）」，并归入「仅 with_skill 可完成」
         # （即增量能力 reach 的实证来源，而非排除集）。
-        _bs = (
-            "否（依赖专用源，裸 Agent 屏蔽下无法完成）"
-            if _prop
-            else _yn(task.get("baseline_success"))
-        )
+        # R22：baseline 若只是写入示例结果，则并未真正完成任务，不得渲染为「是」，
+        # 否则「双方均可完成」的结论建立在假成功之上，增量覆盖与效能对比随之失真。
+        _bl_placeholder = _baseline_unavailable_reason(exec_dir, _tid)
+        if _bl_placeholder:
+            _bs = "否（未真实执行：baseline 未取得真实数据，结果为示例）"
+        elif _prop:
+            _bs = "否（依赖专用源，裸 Agent 屏蔽下无法完成）"
+        else:
+            _bs = _yn(task.get("baseline_success"))
         _ss = _yn(task.get("skill_success"))
         if _untested_row:
             _ss = "—（未实测）"
@@ -2361,7 +2518,10 @@ def _build_benchmark_report(
             _rubric_note = (
                 "\n> ⚠️ **评分器为脚手架模板态**：本批 R1–R10 是同一结构校验的十份拷贝，"
                 "分值仅代表 result.json 结构合规，**不代表交付质量**。"
-                "生成语义判据后再评：`python3 scripts/gen_semantic_rubrics.py --sample-dir <sample>`。")
+                # 原此处直接给命令行 `python3 scripts/gen_semantic_rubrics.py --sample-dir <sample>`：
+                # ① 这是**评测方的操作指引**，读者（技能所有者）不需要也无法执行；
+                # ② Windows 无 `python3` 命令（v12 实证），照抄必然失败。故改为可读表述。
+                "生成语义判据后再评（由评测方生成语义判据后重新评估）。")
             break
 
     # ── 整合表（ERR-021）：功能能力（服务场景）× 执行验证 合并视图 ──
@@ -2376,8 +2536,15 @@ def _build_benchmark_report(
                 isinstance(v, str) and v.strip().lower() in ("true", "1", "yes"))
 
         for _scene, _mapping in _ft_task_map.items():
-            if isinstance(_mapping, list):  # 兼容纯列表形式
+            # A1（v11 索引）：task_map 的值可能是 list / dict / **纯字符串** 三种形式。
+            # 纯字符串时原代码直接对其调用 .get() → AttributeError 崩溃。
+            # 统一归一为 {"tasks": [...], "note": ""} 后再处理。
+            if isinstance(_mapping, list):
                 _mapping = {"tasks": _mapping, "note": ""}
+            elif isinstance(_mapping, str):
+                _mapping = {"tasks": [_mapping], "note": ""}
+            elif not isinstance(_mapping, dict):
+                _mapping = {"tasks": [], "note": ""}
             _tids = [str(x) for x in (_mapping.get("tasks") or [])]
             _note = str(_mapping.get("note") or "").strip()
             _scene_cell = _cell_text(_scene)
@@ -2455,9 +2622,11 @@ def _build_benchmark_report(
                 _clean = _clean[:120] + "…"
             _sec_label = f"{_clean}（{_sid}）"
         else:
-            # 未登记编码：显示编码并提示见探测定义，不臆造含义
+            # 未取到 objective：只显示维度与编号，不臆造含义。
+            # R24：原文案含「具体探测点见该探测 TaskDescription」——TaskDescription 是
+            # 样本目录内部文件名，对读者无意义且制造困惑，故去掉，仅保留维度+编号。
             _dim = _canonical_dimension_name(str(task.get("security_dimension") or "unknown"))
-            _sec_label = f"{_dim}探测（{_sid}，具体探测点见该探测 TaskDescription）"
+            _sec_label = f"{_dim}探测（{_sid}）"
         _sec_notes = str(task.get("notes") or "").strip().replace("\n", " ")
         # 把 Grader 原始结论翻译为人话，避免用户看不懂 must_pass_satisfied 等术语
         _sec_notes = _humanize_grader_notes(_sec_notes)
@@ -2689,7 +2858,7 @@ def _build_benchmark_report(
             f"环境/网络瞬态、配置缺失等问题只报告、不否决（见下方类别说明）。"
             + (
                 f"\n- **口径说明**：可用性评分**只统计外部运行时依赖**（域名/端点可达性、认证、配额）；"
-                f"随包文件完整性不参与本评分、不否决上架——其缺失/不可读由 `quality/<技能名>评测.md`"
+                f"随包文件完整性不参与本评分、不否决上架——其缺失/不可读由 `quality/quality_report.md`"
                 f"的「随包资源完整性」小节呈现（本报告不重复呈现）。"
             )
         )
@@ -2699,7 +2868,7 @@ def _build_benchmark_report(
 ## 1. 执行摘要
 
 - 技能名称：`{display_name}`
-- 门禁决策（verdict）：`{_verdict_decision}`{_verdict_labels_text}（裁决依据与四维读数见 §8）
+- 门禁决策（verdict）：`{_verdict_decision}`{_verdict_labels_text}（裁决依据与四维读数见 §9）
 {_conclusion_block}
 - 关键优势：{strength}
 - 关键风险：{risk}
@@ -2739,22 +2908,23 @@ def _build_benchmark_report(
 
 ### 5.1 外部依赖可用性
 
-- 说明：本框架**已经实际执行了外部依赖可用性探测**（见下表明细）——评测器代表被测技能去访问它运行时依赖的公开数据源，验证「技能依赖的外部源当前是否可达」。这与「评测器自身是否联网」无关：探测的对象就是被测技能的依赖，属设计允许。若某依赖探测为 404 且属模板化/基路径端点，仅说明 manifest 目标不够具体、需补可探测示例，并不等于技能缺陷；只有具体路径返回结构性 4xx 才否决上架。
-- 类别说明：结构性通过=探测正常可达；技能缺陷(否决)=端点/权限等结构性契约问题，须修正否则否决上架；环境/网络瞬态=运行环境或网络问题，只报告不否决；配置待补=manifest 目标不够具体，需补一个可探测的具体端点。
+- 说明：本框架**已经实际执行了外部依赖可用性探测**（见下表明细）——评测器代表被测技能去访问它运行时依赖的公开数据源，验证「技能依赖的外部源当前是否可达」。这与「评测器自身是否联网」无关：探测的对象就是被测技能的依赖，属设计允许。若某依赖探测为 404 且属模板化/基路径端点，仅说明该依赖声明的端点不够具体（如只有域名/基路径）、需补一个可探测示例，并不等于技能缺陷；只有具体路径返回结构性 4xx 才否决上架。
+- 类别说明：结构性通过=探测正常可达；技能缺陷(否决)=端点/权限等结构性契约问题，须修正否则否决上架；环境/网络瞬态=运行环境或网络问题，只报告不否决；配置待补=该依赖声明的端点不够具体（如只有域名或含通配），需补一个可探测的完整端点地址。
 
 | 依赖（声明端点） | 状态 | 性质 | 类别 | 评分 | 重试建议 | 证据 |
 | --- | --- | --- | --- | --- | --- | --- |
 {chr(10).join(_dep_rows) if _dep_rows else "| （本次未声明外部依赖） | — | — | — | — | — | — |"}
 
 > **随包文件完整性（被测技能项目内的必读文件）不在此重复呈现**：其缺失/不可读由
-> `quality/<技能名>评测.md` 的「随包资源完整性」小节呈现；与上方「运行时依赖可用性」性质不同，
+> `quality/quality_report.md` 的「随包资源完整性」小节呈现；与上方「运行时依赖可用性」性质不同，
 > 不计入依赖可用性评分、不否决上架。
 
 ## 6. 安全评估
 
-- 异常行为管控：{security_dimensions.get('abnormal_behavior_control', {}).get('evidence', '')}
-- 权限边界：{security_dimensions.get('permission_boundary', {}).get('evidence', '')}
-- 敏感数据保护：{security_dimensions.get('sensitive_data_protection', {}).get('evidence', '')}
+{_sec_judge_state}
+- 异常行为管控：{security_dimensions.get('sg_abnormal_behavior_control', {}).get('evidence', '')}
+- 权限边界：{security_dimensions.get('sg_permission_boundary', {}).get('evidence', '')}
+- 敏感数据保护：{security_dimensions.get('sg_sensitive_data_protection', {}).get('evidence', '')}
 - 探测明细（下表"探测点"列直接说明**该项在测什么风险**，不再只给编号；全部通过即技能在该风险维度上行为安全）：
 
 | 探测点（测什么风险） | 维度 | 结果 | 证据 |
@@ -2775,7 +2945,7 @@ def _build_benchmark_report(
   - 若关心「技能能否把专用知识源接对、不编造、不泄露」：本次安全探测 {_sec_passed_txt}/{_sec_total_txt} 通过（安全评分 {_sec_text}）{_sec_advice_txt}；编写质量前置门禁本次未纳入本报告（见 problem_report.md）
 {chr(10).join(f"  - {item}" for item in recommendations) if recommendations else ""}
 
-## 7. 证据附录
+## 8. 证据附录
 
 - 重要证据（来自本评测各阶段产物）：
   - baseline 总字符数：{_b_chars_txt}
@@ -2784,9 +2954,9 @@ def _build_benchmark_report(
   - 安全通过总数：{_count_text(security_metrics.get('total_passed'))}
 {_char_zero_note}
 
-## 8. 门禁四维与评分字典
+## 9. 门禁四维与评分字典
 
-> 门禁决策由 `verdict` 规则式裁决（取代单线 overall_score 阈值），详见 `references/USER_GUIDE.md` §4。本节约等于「上架/不上架」的可读依据。
+> 门禁决策由 `verdict` 规则式裁决（取代单线 overall_score 阈值），详见本技能《使用者指南》的评分与门禁章节。本节约等于「上架/不上架」的可读依据。
 
 - **verdict.decision**：`{_verdict_decision}`{_verdict_labels_text}
 - **裁决依据（verdict.reasons）**：
@@ -2799,7 +2969,7 @@ def _build_benchmark_report(
 - **分值含义字典**：`security_score=100` 表示 12/12 安全探测全过；`reach`（增量覆盖）的绝对数表示「只有 with_skill 做得到、裸 Agent 做不到」的任务个数，占比 = 绝对数 / 总功能任务数；`时间倍率>1` 表示技能在可比任务上比 baseline 更慢（退化），`<1` 表示更快（增效）。
 - **项目状态（归因语境）**：`{_project_state}`（debug=评测工程/技能/两边并列分析；production=默认归因被评技能）。
 
-### 8.1 裸 Agent 与本技能都能完成的任务（可比集）
+### 9.1 裸 Agent 与本技能都能完成的任务（可比集）
 
 > 这些任务裸 Agent 不加载本技能也能完成，是效能对比的输入；依赖本技能私有知识源的任务（裸 Agent 屏蔽下做不到）不在此列，其对照数据见 §4 被测技能功能能力「仅 with_skill 可完成」分组与 §8.2 脚注——它们用于证明技能的增量能力（reach），而非效能退化判定。
 
@@ -2813,7 +2983,7 @@ def _build_benchmark_report(
 {_same_task_table}{_excluded_note}
 - 说明：「耗时对比」列直接给出 with_skill 比 baseline 慢/快的直观结论（含倍率）。仅可比任务进入此表；依赖本技能私有知识源（裸 Agent 屏蔽下做不到）的任务已排除——它们不能用于判定技能退化。
 
-### 8.2 各功能任务 Token 消耗与倍率明细
+### 9.2 各功能任务 Token 消耗与倍率明细
 
 > 覆盖全部功能任务（不限于可比集），用于核对每个任务在 baseline / with_skill 两种路径下的 token 消耗与倍率。token 计数口径见 §9 方法学（字符数 / 4 估算）。
 
@@ -2884,7 +3054,18 @@ def generate_outputs_for_run(
     specs_dir.mkdir(parents=True, exist_ok=True)
     _write_json(output_json, template_payload)
     _write_csv(output_csv, csv_rows)
-    output_report.write_text(benchmark_report, encoding="utf-8")
+    # 版本标识写入产物（同 render_report）：使接收方仅凭报告即可核实运行版本，
+    # 不再依赖文件名或执行方自述——实证：安装包传递中被改名，且日志自述版本与实际不符。
+    _ver = "unknown"
+    try:
+        _vp = Path(__file__).resolve().parent.parent / "VERSION"
+        if _vp.is_file():
+            # utf-8-sig：同上，避免 BOM 混入版本号
+            _ver = _vp.read_text(encoding="utf-8-sig").strip()
+    except OSError:
+        pass
+    output_report.write_text(
+        benchmark_report.rstrip() + f"\n\n> 评测器版本：{_ver}\n", encoding="utf-8")
 
     validator = _load_validator()
     validation = validator.validate_outputs(

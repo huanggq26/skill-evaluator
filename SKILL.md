@@ -41,14 +41,20 @@ platforms: [linux, macos, windows]
 
 > **核心原则（定义只在一处）**：`assets/report.template.md` 是报告格式的**唯一真相源**。脚本只产出**客观格式数据**（JSON），不再拼 markdown；LLM 依据模版标注的字段生成**主观格式数据**，二者合并为唯一 `report_data.json`，经 schema 校验后回填模版生成最终报告。报告渲染逻辑不写在代码里。
 
-- **0A 静态质量预检**（必跑，纯静态、零执行）：`python3 scripts/extract_stats.py <SOURCE_DIR>` → `quality/extract_stats.json`；再 `python3 scripts/build_objective_data.py --stats ... --out quality/objective_data.json` 把客观事实映射为 objective 维度级格式数据（字段严格对应模版 `objective` 标注）。
+> **跨平台命令约定（Windows 实证）**：Windows 环境**没有 `python3` 命令**（只有 `python`），**也没有 bash**。
+> 故本文所有脚本示例统一写 `python scripts/...`（Linux/macOS 上 `python3` 等价，可互换）。
+> 流水线编排**必须**用 Python 版 runner：`python scripts/run_pipeline.py`；
+> `run_eval_pipeline.sh` 是 bash 版，**Windows 无 bash 时不可用**（实证：win 上只能把流水线拆成
+> 十几个脚本手工逐步执行，导致漏步骤、跳门禁、产物层级错乱）。
+
+- **0A 静态质量预检**（必跑，纯静态、零执行）：`python scripts/extract_stats.py <SOURCE_DIR>` → `quality/extract_stats.json`；再 `python scripts/build_objective_data.py --stats ... --out quality/objective_data.json` 把客观事实映射为 objective 维度级格式数据（字段严格对应模版 `objective` 标注）。
 - **0B 可用性预检**（条件步）：当被测技能存在外部依赖时执行 `dep_probe.py` → `dependency_probe.json`（纯 JSON），再跑一次 `build_objective_data.py --probe ...` 把可用性客观维度并入 `objective_data.json`；无外部依赖则 `dependency_skipped=true` 跳过、不否决。
 
 **AI 回填（报告生成，由本 agent 执行）**：
 1. 真实 `read_file` 模版 `assets/report.template.md`，依据其 `<!-- dim/field -->` 标注 + `objective_data.json` 事实基座，生成 `subjective.json`（只填 `subjective` 字段；客观字段不碰）。
-2. 合并：`python3 scripts/merge_report_data.py --objective quality/objective_data.json --subjective subjective.json --template assets/report.template.md --out quality/report_data.json`（客观优先；未知字段/缺失客观维度报错）。
-3. 校验：`python3 scripts/validate_quality_report.py --data quality/report_data.json --template assets/report.template.md`（schema 基准：字段对齐、客观维度必含、评分不进报告）。
-4. 回填：`python3 scripts/render_report.py --template assets/report.template.md --data quality/report_data.json --out quality/<SKILL_NAME>评测.md --skill-name <SKILL_NAME>`。
+2. 合并：`python scripts/merge_report_data.py --objective quality/objective_data.json --subjective subjective.json --template assets/report.template.md --out quality/report_data.json`（客观优先；未知字段/缺失客观维度报错）。
+3. 校验：`python scripts/validate_quality_report.py --data quality/report_data.json --template assets/report.template.md`（schema 基准：字段对齐、客观维度必含、评分不进报告）。
+4. 回填：`python scripts/render_report.py --template assets/report.template.md --data quality/report_data.json --out quality/quality_report.md --skill-name <SKILL_NAME>`。
 
 > **0B 触发条件（关键）**：仅当依赖提取器从被测技能上下文提取到 `external_deps` 非空才执行 0B；空则跳过。即"不是所有技能都需要可用性评测"。
 
@@ -63,14 +69,14 @@ platforms: [linux, macos, windows]
   2. **解决方案**：逐项给出对应修复建议（指明要改被测 skill 的哪个文件、改什么；强调改的是被测对象，不是本评测工具），修完可让本 agent 重跑阶段 0；
   3. **产物文件位置**：报告 `{QUALITY_REPORT}`、客观统计 `{PF_STATS}`、评测计划 `{PF_EVAL_PLAN}` 的**绝对路径**，让用户可直接打开细看。
 - **通过**：按「用户交互与进度播报规范」告知报告绝对路径 `{QUALITY_REPORT}`，再按模式分流：
-  - `--mode start`：**必须显式说明"本次仅完成阶段 0（预检），阶段 1→4 尚未执行"**，并给出继续全流程的具体命令（`bash scripts/run_eval_pipeline.sh --mode resume`）——不得只说"完成"而不交代进度与下一步（历史实证：用户以为跑完了全流程，实为只产出阶段 0，且无任何提示）。
+  - `--mode start`：**必须显式说明"本次仅完成阶段 0（预检），阶段 1→4 尚未执行"**，并给出继续全流程的具体命令（`python scripts/run_pipeline.py --mode resume`；**不要**给 bash 版命令——Windows 无 bash，给了也执行不了）——不得只说"完成"而不交代进度与下一步（历史实证：用户以为跑完了全流程，实为只产出阶段 0，且无任何提示）。
   - `--mode full` / `--mode resume`：**不询问用户**，自动接续阶段 1→2→3→4（full 从 0 之后、resume 从 1 起），连续执行直至全部完成或某阶段 DoD 验证失败；中途仅按「用户交互与进度播报规范」同步进度，不逐阶段征询。
 
 ## 总览与阶段路线图
 
 | 阶段 | 入口 reference | 输入 | 输出 | 门禁 |
 |------|----------------|------|------|------|
-| 0 预检（静态 + 可用性） | `references/stage0_preflight.md` + `references/dependency_availability.md` | `{SOURCE_DIR}` | `…/quality/{SKILL_NAME}评测.md` + 可用性章节 | 0A：`validate_quality_report.py` 退出码 0；0B：契约型缺陷 `exit 1`（无外部依赖则跳过） |
+| 0 预检（静态 + 可用性） | `references/stage0_preflight.md` + `references/dependency_availability.md` | `{SOURCE_DIR}` | `…/quality/quality_report.md` + 可用性章节 | 0A：`validate_quality_report.py` 退出码 0；0B：契约型缺陷 `exit 1`（无外部依赖则跳过） |
 | 1 样本生成 | `references/stage1_sample.md` | `{SOURCE_DIR}` | `…/sample/` | 11 项验证 |
 | 2 基线执行 | `references/stage2_baseline.md` | `…/sample/` | `…/exec/baseline/` | 5 项验证 |
 | 3 带 skill 执行 | `references/stage3_withskill.md` | `…/sample/` | `…/exec/with_skill/` | 6 项验证 |
@@ -125,8 +131,8 @@ platforms: [linux, macos, windows]
 ## 脚本调用约定
 
 - **环境**：Python **≥ 3.8**（无强制第三方依赖；TOML 检查在缺 `tomllib` 时自动回退或跳过）。使用者侧的环境说明见 `references/USER_GUIDE.md#2.0 环境要求`。
-- 客观统计（阶段 0）：`python3 scripts/extract_stats.py <SOURCE_DIR>`
-- 质量门禁（阶段 0）：`python3 scripts/validate_quality_report.py --report <R> --plan <P> --stats <S> --template assets/report.template.md`
+- 客观统计（阶段 0）：`python scripts/extract_stats.py <SOURCE_DIR>`
+- 质量门禁（阶段 0）：`python scripts/validate_quality_report.py --report <R> --plan <P> --stats <S> --template assets/report.template.md`
 - 其余脚本（时间戳 / metrics / 评分 / 报告生成 / 安全聚合等）见各阶段 reference 文档内的具体命令与 `references/config.md` 的 `PF_*` / 阶段专属常量。
 
 ## 授权与范围契约（减少打扰 + 知情授权）
@@ -137,7 +143,7 @@ platforms: [linux, macos, windows]
 - **唯一的出网情形（已含在本次确认内，非越界）**：阶段 0B 可用性预检（`dep_probe.py`）会对**被测技能自身声明的外部依赖端点**做**只读 HTTP 探活**（D1–D6 checker，匿名 GET，不传凭据、不改远端）。这是「可用性预检」的本职——不探活就无法判断依赖是否存活。仅当被测技能提取到 `external_deps` 非空才触发；无外部依赖的技能 0B 整体跳过、完全不出网。**除此之外，本管线不访问任何其它网络资源**。
 - **范围内免逐条授权**：上述范围内的操作合并为单次范围确认；不为每个 Python 脚本单独弹窗。
 - **越界才单独授权**：仅当某步真要越界（写工作区外 / 删除 / 访问被测技能声明依赖之外的网络 / 改系统或凭据）时，才单独用大白话说明「做什么 / 读哪些 / 写哪些 / 风险等级」，再请你确认。
-- **单点 runner**：`scripts/run_eval_pipeline.sh` 支持三种测评流程（`--mode`），合并为一次授权运行；启动时打印本契约范围摘要，让你知情：
+- **单点 runner**：`scripts/run_pipeline.py`（**Python 版 · 跨平台首选**）支持三种测评流程（`--mode`），合并为一次授权运行；启动时打印本契约范围摘要，让你知情。另有 `scripts/run_eval_pipeline.sh`（bash 版，功能等价，**仅 Linux/macOS 可用**）：
   - `--mode start`：只跑开始阶段（0），输出开始阶段报告（质量预检报告）。
   - `--mode full`：全流程自动引导 0→1→2→3→4，无需用户参与，产出开始阶段报告 + 最后阶段报告（benchmark/problem）。full 模式下阶段 0 通过后不再停询用户，自动接续。
   - `--mode resume`：已跑过开始阶段，继续 1→4，产出最后阶段报告。阶段 1 脚手架可由 `--scaffold-spec` 自动生成；缺执行产物时打印「AI 评测执行者接续指引」而非崩溃。
@@ -286,7 +292,7 @@ platforms: [linux, macos, windows]
 
 | 阶段 | 关键产物 | 变量 / 路径 |
 |------|----------|-------------|
-| 0 | 质量评测报告 | `{QUALITY_REPORT}` = `…/quality/{SKILL_NAME}评测.md` |
+| 0 | 质量评测报告 | `{QUALITY_REPORT}` = `…/quality/quality_report.md` |
 | 0 | 评测计划 / 客观统计 | `{PF_EVAL_PLAN}` / `{PF_STATS}`（同 `quality/` 下） |
 | 1 | 测试样本 | `{SAMPLES_DIR}` = `…/sample/` |
 | 2 | 基线执行结果 | `{BASELINE_DIR}` = `…/exec/baseline/` |
@@ -353,11 +359,12 @@ platforms: [linux, macos, windows]
 - `references/skill-evaluation-system.md` — **体系原理讲解（概念层）**：为什么体系化评测 / 五个评测面 / 四大深度评测（可用性 · 功能 · 性能 · 安全）原理 / AI 与程序双线协作 / 四类产物角度 / 可进化闭环 / 总概念图。**定位**：原理讲解**非实现规范**，冲突以 `SKILL.md` 与 `scripts/` 源码为准（原理文档不覆盖实现）；用户问"设计思路/原理"时提供（含概念图，适合阅读器打开）
 - `references/config.md` — 跨阶段路径、变量、常量（含 `PF_*` / `QUALITY_REPORT`）
 - `references/stage0_preflight.md` — 阶段 0 质量预检全流程
-- `references/dependency_availability.md` — **可用性探测（DEP-AVAIL）执行规格**：D1–D6 checker + category 裁决 + 依赖提取器（DEP-EXTRACT）规则。**改动前置（仅本技能作用域）**：修改 `scripts/dep_probe.py` / `scripts/extract_deps.py` / `run_eval_pipeline.sh` 的阶段 0B 步骤前，必须先 `read_file` 本规格并与之保持一致，未读不得改探测行为。
+- `references/dependency_availability.md` — **可用性探测（DEP-AVAIL）执行规格**：D1–D6 checker + category 裁决 + 依赖提取器（DEP-EXTRACT）规则。**改动前置（仅本技能作用域）**：修改 `scripts/dep_probe.py` / `scripts/extract_deps.py` / `run_pipeline.py`（含 bash 版 `run_eval_pipeline.sh`）的阶段 0B 步骤前，必须先 `read_file` 本规格并与之保持一致，未读不得改探测行为。
 - `references/stage1_sample.md` / `stage2_baseline.md` / `stage3_withskill.md` / `stage4_spec.md` — 阶段 1–4 流程
 - `references/stage1_config.md` / `stage2_config.md` / `stage4_config.md` — 阶段专属常量
 - `references/scope_contract.md` — **范围与安全契约**（授权模型：范围授权 vs 逐命令授权；越界才单独人话授权）
-- `scripts/run_eval_pipeline.sh` — **单点评测管线 runner**（合并阶段 4 编排为一次授权，启动打印范围摘要）
+- `scripts/run_pipeline.py` — **单点评测管线 runner（Python 版 · 跨平台首选）**：子脚本一律用 `sys.executable` 调用，Windows 无 `python3`/bash 亦可一条命令跑全流程
+- `scripts/run_eval_pipeline.sh` — 同上 runner 的 bash 版（功能等价，**仅 Linux/macOS 可用**）
 - `references/exec_contract.md` / `sample_contract.md` / `spec_contract.md` — 各阶段基准合约
 - `references/exec_common.md` — ExecAgent 共用执行细则
 - `references/specs/` — **输出数据结构定义**（运行态技能文档；`.spec.md` 指数据结构说明，非开发态规格）

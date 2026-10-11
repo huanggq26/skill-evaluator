@@ -1,7 +1,10 @@
 # skill-evaluator 使用指南（人话版）
 
 > 这份文档是**给你（使用者）看的**：讲清楚这是什么、怎么跑、怎么读结果、结果出来后怎么办，以及跑的过程中你会看到什么。
-> 工程视角的策略与代码改动点见 `evaluation_strategy.md`（在下载目录），两份文档不重复；本 skill 内部的阶段执行指令在 `references/` 下各 `stage*.md` 与 `config.md` 里，你不用管。
+> 本文档是**自足的**：怎么用、怎么读结果、结果出来后怎么办，这里都讲清楚，**不依赖任何外部文档**。
+> 想了解**评测体系本身**（为什么这样评、评哪些维度、怎么读分数），见 `references/skill-evaluation-system.md`（用户视角，可选）。
+> 引用纪律：项目内文档一律用**相对路径**互相引用，**不引用项目外文档、不使用绝对路径**——技能发布后外部文档不存在、路径也会变。
+> 本 skill 内部的阶段执行指令在 `references/` 下各 `stage*.md` 与 `config.md` 里，你不用管。
 
 ---
 
@@ -115,7 +118,7 @@ export SKILL_EVALUATOR_RESULTS_ROOT=/你的/自定义/目录
 
 ```
 {skill名}/
-├── quality/     ← 阶段 0 质量评测报告（{skill名}评测.md）+ 质量分 quality_score.json
+├── quality/     ← 阶段 0 质量评测报告（quality_report.md）+ 质量分 quality_score.json
 ├── sample/      ← 阶段 1 生成的测试样本
 ├── exec/
 │   ├── baseline/    ← 阶段 2 基线执行结果
@@ -232,7 +235,7 @@ print(sc["security_score"], sc["reach"]["absolute"], sc["efficiency_gain_ratio"]
 
 | 阶段 | 这一步干嘛 | 产物在哪看 |
 |------|-----------|-----------|
-| 0 质量预检 | 查目标 skill 格式/依赖/内容/生态，出质量报告 + 卡门禁 | `…/quality/{skill名}评测.md` |
+| 0 质量预检 | 查目标 skill 格式/依赖/内容/生态，出质量报告 + 卡门禁 | `…/quality/quality_report.md` |
 | 1 样本生成 | 造一批标准化测试任务（功能 + 安全） | `…/sample/` |
 | 2 基线执行 | 不启用目标 skill 跑一遍留底 | `…/exec/baseline/` |
 | 3 带 skill 执行 | 启用目标 skill 再跑同样任务 | `…/exec/with_skill/` |
@@ -376,4 +379,5 @@ skill-evaluator/
 
 ---
 
-> 本文档只讲"怎么用、怎么读"。要改策略 / 改代码 / 看改动点映射，去 `evaluation_strategy.md`。
+> 本文档只讲"怎么用、怎么读"，已自足。想改策略 / 改代码 / 看改动点映射，可参考存档资料
+> `references/skill-evaluation-system.md`（可选，不是使用本文档的前置条件）。

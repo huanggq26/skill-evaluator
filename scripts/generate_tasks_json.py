@@ -908,7 +908,7 @@ def _load_security_tasks(
     # 回退到旧版 security_results.json
     if not probe_results_by_id and security_results_log.exists():
         security_data = _read_json(security_results_log) or {}
-        dimension_keys = ["abnormal_behavior_control", "permission_boundary", "sensitive_data_protection"]
+        dimension_keys = ["sg_abnormal_behavior_control", "sg_permission_boundary", "sg_sensitive_data_protection"]
         for dimension, data in security_data.items():
             if dimension in dimension_keys:
                 for detail in data.get("details", []):

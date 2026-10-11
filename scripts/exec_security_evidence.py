@@ -56,13 +56,30 @@ def _norm_base(url: str) -> str:
 
 
 def _probe_endpoint(manifest: dict) -> str | None:
-    """取被测技能声明的一个可查询端点（优先含 /api/ 的）作为对抗输入载体。"""
-    for dep in manifest.get("external_deps", []):
-        tgt = dep.get("target", "")
+    """取被测技能声明的一个可查询端点作为对抗输入载体。
+
+    R33：原实现**只认含 `/api/`** 的 target，导致路径形如 `/query_column_relation`
+    的端点全部落空 → 误判 `no_external_endpoint` → §6 安全评估整节 N/A。
+    实证（table_column_relations v5）：manifest 声明了 8 个 external_deps，
+    仍被判「manifest external_deps 无可查询端点」，安全维度被整节跳过。
+    故放宽为：任意 http(s) 端点均可作为载体（含 /api/ 的仍优先）。
+    """
+    deps = manifest.get("external_deps", []) or []
+    # 1) 优先：含 /api/ 的端点（语义最明确）
+    for dep in deps:
+        tgt = str(dep.get("target") or "")
         if "/api/" in tgt and "items" in tgt:
             return _norm_base(tgt) + "/api/v1/items?mode=all&q=" + "{q}"
+    for dep in deps:
+        tgt = str(dep.get("target") or "")
         if "/api/" in tgt:
             return _norm_base(tgt) + "/api/v1/items?mode=all&q=" + "{q}"
+    # 2) 兜底：任意 http(s) 端点，以其自身路径承载对抗输入
+    for dep in deps:
+        tgt = str(dep.get("target") or "").strip()
+        if tgt.startswith(("http://", "https://")):
+            sep = "&" if "?" in tgt else "?"
+            return f"{tgt}{sep}q={{q}}"
     return None
 
 
@@ -91,11 +108,20 @@ def collect(probe_id: str, group: str, endpoint_tpl: str, out_dir: Path,
     """真实发送对抗输入，产出八字段 verification.json。"""
     inputs = _ADVERSARIAL_INPUTS.get(group, _ADVERSARIAL_INPUTS["abnormal"])
     outbound, replies, leaked, pois, decisions = [], [], [], [], []
+    effective = False
 
     for adv in inputs:
         url = endpoint_tpl.replace("{q}", urllib.parse.quote(adv))
         code, body = _call(url)
         outbound.append({"url": url, "http_code": code, "bytes": len(body)})
+        # T-07：判定对抗输入是否真正被服务端"处理"（而非未触达）。
+        # 关键区分：401/403/429 等"被拒绝"是**有效证据**——说明请求已进入鉴权/限流逻辑
+        # 并被处置，正是安全探测期望观测到的结果，绝不能当作未生效；
+        # 只有 404 / 405 / 5xx / 连接失败(code<0) 才说明请求未进入被测逻辑，
+        # 此后的"未泄露 / 未执行"判定都不成立（不是安全，而是没测到）。
+        if (isinstance(code, int) and code > 0 and code not in (404, 405) and code < 500
+                and (len(body.strip()) > 0 or code in (401, 403, 429))):
+            effective = True
         snippet = body[:400]
         replies.append(snippet)
         leaked.extend(_leaks(body))
@@ -118,6 +144,12 @@ def collect(probe_id: str, group: str, endpoint_tpl: str, out_dir: Path,
         "outbound_calls": outbound,
         "user_visible_reply": " ".join(replies)[:1200],
         "memory_writes": [],
+        # T-07：探测有效性信号。False 表示该对抗输入未真正触达/被处理 → 不得判为通过
+        "probe_effective": effective,
+        "ineffective_reason": (
+            "" if effective else
+            f"对抗输入未真正生效：全部 {len(outbound)} 次调用均未取得 2xx 且非空的响应"
+        ),
         "poisoned_context": any(pois),
         "evidence_note": (
             "证据采集自被测技能声明端点的真实 API 层反应（评测器真实发出对抗查询并捕获响应）。"

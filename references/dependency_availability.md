@@ -5,8 +5,10 @@
 > **归属**：阶段 0 的第二步（0B），位于 0A 静态预检之后、阶段 1 之前，是性能/安全耗时测试的总前置闸门。
 > **条件触发**：仅当依赖提取器从被测技能上下文提取到 `external_deps` 非空时才执行 0B；为空则 `dependency_skipped=true`、0B 自然跳过（不是所有技能都需要可用性评测）。
 > **约束对象**：`scripts/extract_deps.py`（DEP-EXTRACT 提取器）、`scripts/dep_probe.py`（D1–D6 探测与裁决）、`run_eval_pipeline.sh` 的阶段 0B 步骤。改这些文件前，必须先 `read_file` 本规格并与之保持一致，未读不得改探测行为（本段即细节逻辑所在）。
-> 业务原理见 `~/Downloads/skill-evaluator_可用性测试设计.md`（人读）。
-> 技术改造细节见 `~/Downloads/skill-evaluator_可用性测试_技术改造方案.md`。
+> **引用纪律**：本规格**自足**——业务原理与裁决规则都在本文件内（见下方各章）。
+> 不引用项目外文档、不使用绝对路径：技能发布后外部文档不存在、路径也会变，
+> 项目内文档之间一律用**相对路径**互相引用。
+> （用户视角的体系说明见 `references/skill-evaluation-system.md`）
 
 ## 1. 前置：依赖提取与探测（是否进入本阶段）
 

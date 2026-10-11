@@ -1,0 +1,34 @@
+# 治理操作日志（可据此回滚历史操作）
+
+- `2026-10-09 09:34:21` | `/Users/family/Library/Mobile Documents/com~apple~CloudDocs/Agent/skill-evaluator_risk-assessment-explainer.md` | backup(post-merge) | → skill-evaluator_risk-assessment-explainer-pre-post-merge-20261009-093421.md
+- `2026-10-09 09:43:39` | `error_registry/by_module/_cross_cutting.md` | set(1 处) | ✅ 非空行 461 → 461，体积 18720 → 18783；备份 _cross_cutting-pre-set-20261009-094339.md
+- `2026-10-09 09:43:39` | `CloudDocs/Agent/skill-evaluator_risk-assessment-explainer.md` | restore-from-backup(9/30 副本 + 上下文重建) | 已恢复至 1454 行；备份 skill-evaluator_risk-assessment-explainer 2.md（用户手工）
+- `2026-10-09 09:43:39` | `CloudDocs/Agent/skill-evaluator_risk-assessment-explainer.md` | batch3 前备份 | explainer-pre-wave3-20261009-090515.md
+- `2026-10-09 09:43:39` | `CloudDocs/Agent/skill-evaluator_risk-assessment-explainer.md` | batch4 前备份 | explainer-pre-batch4-*.md
+- `2026-10-09 09:43:39` | `CloudDocs/Agent/skill-evaluator_risk-assessment-explainer.md` | 决策记录重建前备份 | explainer-pre-decisions-*.md
+- `2026-10-09 09:44:44` | `/Users/family/Library/Mobile Documents/com~apple~CloudDocs/Agent/skill-evaluator_risk-assessment-explainer.md` | set(1 处) | ✅ 非空行 1083 → 1084，体积 66027 → 66089；备份 skill-evaluator_risk-assessment-explainer-pre-set-20261009-094444.md
+- `2026-10-09 10:22:33` | `TASKLOG.md` | set(3 处) | ✅ 非空行 322 → 325，体积 18976 → 19385；备份 TASKLOG-pre-set-20261009-102233.md
+- `2026-10-09 10:22:34` | `../openspec/changes/2026-09-24-security-surface-scan-normalization/tasks.md` | set(5 处) | ✅ 非空行 39 → 40，体积 2081 → 2531；备份 tasks-pre-set-20261009-102234.md
+- `2026-10-09 10:23:01` | `TASKLOG.md` | set(1 处) | ✅ 非空行 325 → 344，体积 19385 → 20597；备份 TASKLOG-pre-set-20261009-102301.md
+- `2026-10-09 10:52:13` | `INDEX.md` | set | ❌ 中止：第 1 处未命中
+- `2026-10-09 10:52:34` | `INDEX.md` | set | ❌ 中止：第 1 处未命中
+- `2026-10-09 10:53:16` | `INDEX.md` | set(1 处) | ✅ 非空行 36 → 36，体积 2154 → 2237；备份 INDEX-pre-set-20261009-105316.md
+- `2026-10-09 10:58:48` | `TASKLOG.md` | set(3 处) | ✅ 非空行 344 → 347，体积 20597 → 21144；备份 TASKLOG-pre-set-20261009-105848.md
+- `2026-10-09 11:00:31` | `TASKLOG.md` | set(1 处) | ✅ 非空行 347 → 347，体积 21144 → 21145；备份 TASKLOG-pre-set-20261009-110031.md
+- `2026-10-09 11:19:11` | `/Users/family/Library/Mobile Documents/com~apple~CloudDocs/Agent/skill-evaluator_risk-assessment-explainer.md` | set(1 处) | ✅ 非空行 1084 → 1091，体积 66089 → 66397；备份 skill-evaluator_risk-assessment-explainer-pre-set-20261009-111911.md
+- `2026-10-09 11:19:11` | `TASKLOG.md` | set(2 处) | ✅ 非空行 347 → 353，体积 21145 → 21559；备份 TASKLOG-pre-set-20261009-111911.md
+- `2026-10-09 11:19:31` | `TASKLOG.md` | set(1 处) | ✅ 非空行 353 → 353，体积 21559 → 21724；备份 TASKLOG-pre-set-20261009-111931.md
+- `2026-10-09 11:34:49` | `TASKLOG.md` | set(1 处) | ✅ 非空行 353 → 365，体积 21724 → 22688；备份 TASKLOG-pre-set-20261009-113449.md
+- `2026-10-09 11:43:24` | `AGENTS_RULES.md` | set(1 处) | ✅ 非空行 575 → 576，体积 43442 → 43602；备份 AGENTS_RULES-pre-set-20261009-114324.md
+- `2026-10-09 11:43:24` | `tmp/INDEX.md` | set(1 处) | ✅ 非空行 36 → 37，体积 2237 → 2360；备份 INDEX-pre-set-20261009-114324.md
+- `2026-10-09 11:43:24` | `TASKLOG.md` | set(2 处) | ✅ 非空行 365 → 369，体积 22688 → 23157；备份 TASKLOG-pre-set-20261009-114324.md
+- `2026-10-09 11:43:42` | `TASKLOG.md` | set(4 处) | ✅ 非空行 377 → 379，体积 23333 → 23837；备份 TASKLOG-pre-set-20261009-114342.md
+- `2026-10-09 15:30:28` | `.project/TASKLOG.md` | set | ⚠ 写入成功但校验失败：G19. 阶段编号重排
+- `2026-10-09 15:57:09` | `.project/TASKLOG.md` | set(1 处) | ✅ 非空行 411 → 412，体积 25586 → 25681；备份 TASKLOG-pre-set-20261009-155709.md
+- `2026-10-09 16:31:56` | `.project/TASKLOG.md` | set | ❌ 中止：第 5 处未命中
+- `2026-10-09 16:32:33` | `.project/TASKLOG.md` | set(6 处) | ✅ 非空行 412 → 418，体积 25681 → 26611；备份 TASKLOG-pre-set-20261009-163233.md
+- `2026-10-09 16:50:36` | `.project/TASKLOG.md` | set(5 处) | ✅ 非空行 418 → 426，体积 26611 → 27132；备份 TASKLOG-pre-set-20261009-165036.md
+- `2026-10-10 19:36:24` | `scripts/surface_tagging.py` | backup(surface-tag-scan-exclusion) | → surface_tagging-pre-surface-tag-scan-exclusion-20261010-193624.py
+- `2026-10-10 19:36:24` | `scripts/surface_tagging.py` | set(5 处) | ✅ 非空行 144 → 171，体积 5803 → 7089；备份 surface_tagging-pre-set-20261010-193624.py
+- `2026-10-10 19:39:13` | `openspec/changes/2026-10-10-surface-tag-scan-exclusion/tasks.md` | set(2 处) | ✅ 非空行 21 → 22，体积 848 → 1517；备份 tasks-pre-set-20261010-193913.md
+- `2026-10-10 19:39:44` | `openspec/changes/2026-10-10-surface-tag-scan-exclusion/proposal.md` | set(1 处) | ✅ 非空行 23 → 23，体积 1497 → 1864；备份 proposal-pre-set-20261010-193944.md

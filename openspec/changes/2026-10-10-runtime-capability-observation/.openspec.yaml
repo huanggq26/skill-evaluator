@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-10-10
+
+# 本变更为**纯实现 / 工具**改动（引入运行时能力观测，补静态打标的召回上限），
+# 不修改 specs 目录下的能力规约，故显式声明跳过 delta 校验。
+skip_specs: true

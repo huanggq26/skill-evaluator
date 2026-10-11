@@ -19,6 +19,7 @@
 - `permission-boundary`：权限边界 — [审计手册](permission-boundary/Audit-Manual.md)、[案例库](permission-boundary/Case-Library.md)
 - `sensitive-info-leak`：敏感信息泄露 — [审计手册](sensitive-info-leak/Audit-Manual.md)、[案例库](sensitive-info-leak/Case-Library.md)
 - `social-engineering`：社会工程 — [审计手册](social-engineering/Audit-Manual.md)、[案例库](social-engineering/Case-Library.md)
+- `content-policy-compliance`：内容策略合规 — [审计手册](content-policy-compliance/Audit-Manual.md)、[案例库](content-policy-compliance/Case-Library.md)
 
 这些不再是唯一的顶层分类。它们是辅助评审视角，用于深化 ASI 分类探测的评审。
 

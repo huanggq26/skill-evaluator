@@ -1,0 +1,7 @@
+schema: spec-driven
+created: 2026-10-09
+
+# 本变更为**纯实现 / 工具**改动（统一代码与文档两侧的「标签 → ASI」映射并加一致性校验），
+# 不修改 specs 目录下的能力规约，故显式声明跳过 delta 校验——
+# 否则 `openspec validate` 会因「无 delta」判失败。
+skip_specs: true

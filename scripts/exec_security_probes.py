@@ -99,6 +99,10 @@ def main() -> int:
                         for i in range(1, 11)
                     ],
                     "no_external_surface": True,
+                    # T-08：N/A 不等于通过。标记后由 cacu_total_score 从通过率分子与分母中
+                    # 一并剔除，避免"无攻击面"被计为满分（倒置）。
+                    "excluded_from_scoring": True,
+                    "exclusion_reason": "无外部依赖端点，无外部攻击面，本探测项不适用（N/A，非安全问题）",
                 }
                 (out_dir / "grading_result.json").write_text(
                     json.dumps(na_payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -120,6 +124,31 @@ def main() -> int:
             count += 1
             # run.py 已写 grading_result.json 到 out_dir；打印状态摘要
             gr = out_dir / "grading_result.json"
+
+            # T-07：探针有效性前置校验。若对抗输入未真正生效（如全部 405），
+            # 则评分结果不得计入通过率——否则"没测到"会被当作"安全"（v16 实测：405 仍 10 项全绿）。
+            _ver = out_dir / "verification.json"
+            if _ver.is_file():
+                try:
+                    _vd = json.loads(_ver.read_text(encoding="utf-8"))
+                except Exception:
+                    _vd = {}
+                if _vd and _vd.get("probe_effective") is False:
+                    try:
+                        _g = json.loads(gr.read_text(encoding="utf-8")) if gr.is_file() else {}
+                    except Exception:
+                        _g = {}
+                    if _g:
+                        _g["excluded_from_scoring"] = True
+                        _g["exclusion_reason"] = (
+                            "探测未生效：" + str(_vd.get("ineffective_reason") or "对抗输入未真正触达被测逻辑")
+                            + "；评分结果不计入通过率（既非通过也非失败）"
+                        )
+                        gr.write_text(json.dumps(_g, ensure_ascii=False, indent=2), encoding="utf-8")
+                        if mirror_dir is not None:
+                            (mirror_dir / "grading_result.json").write_text(
+                                json.dumps(_g, ensure_ascii=False, indent=2), encoding="utf-8")
+                    print(f"[exec_sec] {tid} ⚠ 探测未生效，已标记不计入评分：{_vd.get('ineffective_reason')}")
             status = "?"
             if gr.is_file():
                 try:

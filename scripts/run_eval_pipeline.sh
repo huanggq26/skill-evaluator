@@ -1,4 +1,13 @@
 #!/usr/bin/env bash
+
+# ---- Windows 兼容 shim：无 python3 命令时回退到 python ----
+# 实证（win 运行日志 A1）：Windows 上没有 `python3`，只有 `python`。
+# 本 runner 内有 35 处调用写死 python3 → 在 win 上直接 FileNotFoundError，
+# 全流程第一步即失败。此处定义同名函数兜底，避免改动全部调用点。
+if ! command -v python3 >/dev/null 2>&1; then
+  python3() { command python "$@"; }
+fi
+
 # ============================================================
 # skill-evaluator · 单点评测管线 runner
 # 把阶段 0（质量门禁/开始阶段）与阶段 4（最后阶段聚合）编排合并为「一次范围授权」运行；
@@ -41,10 +50,12 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --skill-dir)     TARGET_SKILL="$2"; _EXPLICIT_SKILL_DIR=1; shift 2;;
     --results-root)  RESULTS_ROOT="$2"; shift 2;;
+    --run-id)        RUN_ID="$2"; shift 2;;   # 本次运行标识（如 v17）；默认时间戳
     --scaffold-spec) SCAFFOLD_SPEC="$2"; shift 2;;   # 指向 functional_tasks JSONL（build_sample_pack 主输入）
     --security-spec) SECURITY_SPEC="$2"; shift 2;;   # 可选：安全探测声明 JSON
     --mode)          MODE="$2"; shift 2;;
     --reset)         RESET=1; shift;;
+    --skip-subjective-gate) SKIP_SUBJ_GATE=1; shift;;   # 逃生阀：显式跳过阶段0「主观已裁定」门禁
     --skip-exec-check) SKIP_EXEC_CHECK=1; shift;;
     --project-state) PROJECT_STATE="$2"; shift 2;;
     *) echo "未知参数: $1" >&2; exit 2;;
@@ -82,23 +93,57 @@ else
 fi
 
 SKILL_NAME="$(basename "$TARGET_SKILL")"
-WS="$RESULTS_ROOT/$SKILL_NAME"
+# ── 目录结构：<结果根>/<技能名>/<本次运行标识> ──
+# 旧结构把版本放在外层（因调用方常把 …_v16 当作 --results-root 传入），导致同一技能的
+# 多轮评测散落在不同父目录下，无法按技能归组对比。现改为「技能 → 运行」两级。
+# 未指定 --run-id 时用时间戳，保证每次运行互不覆盖。
+RUN_ID="${RUN_ID:-$(date +%Y%m%d-%H%M%S)}"
+WS="$RESULTS_ROOT/$SKILL_NAME/$RUN_ID"
 
 # ---- 可选：清空评测工作区（**仅本次评测对象的子目录 $WS**）----
 # 重要：RESULTS_ROOT 下按技能名分子目录（$RESULTS_ROOT/<技能名>），各技能的评测结果并存。
 # 故 --reset 只能删**本次被测技能**的子目录，**绝不可删整个 RESULTS_ROOT**——
 # 否则评测 A 技能时会把 B、C 技能的既往评测结果一并清空（真实数据丢失，且不可再生）。
 # 位置要求：必须在本段（SKILL_NAME/WS 定义之后）执行，才能拿到 $WS。
-if [[ "$RESET" == "1" ]]; then
-  echo "▶ --reset：清空本次评测对象的工作区子目录 $WS"
-  echo "   （仅清 $SKILL_NAME 一个子目录；RESULTS_ROOT 下其他技能的评测结果**保留**；可重跑再生，不删被测技能/工作区外）"
+# R11：改为**默认清空**（原为仅 --reset 时清）。
+# 实证：同一评测会话内重跑一次（如更新技能包后重跑），旧产物与新产物并存于不同层级
+# （table_column_relations_v4/quality 与 v4/table_column_relations/quality），且两者由
+# **不同版本**技能生成（旧版输出旧标题与占位文案），造成「同一评测两份结论」的严重混淆。
+# 故默认清空本次被测技能的子目录，从源头杜绝版本混杂与层级错乱。
+# 例外：--mode resume 依赖已有阶段 0 产物，不得清空；--reset 保留为显式开关（行为一致）。
+if [[ "$MODE" != "resume" || "$RESET" == "1" ]]; then
+  echo "▶ 清空本次评测对象的工作区子目录 $WS（R11 默认清空；仅本技能子目录）"
+  echo "   （仅清 $SKILL_NAME 一个子目录；RESULTS_ROOT 下其他技能的评测结果**保留**）"
   rm -rf "$WS"
+elif [[ "$MODE" == "resume" ]]; then
+  echo "▶ resume 模式：保留既有阶段 0 产物，不清空 $WS"
 fi
 SAMPLE_DIR="$WS/sample"
 EXEC_DIR="$WS/exec"
 SPEC_DIR="$WS/spec"
 QUALITY_DIR="$WS/quality"
-QUALITY_REPORT="$QUALITY_DIR/${SKILL_NAME}评测.md"
+QUALITY_REPORT="$QUALITY_DIR/quality_report.md"
+
+# ── 写 LATEST.json 指针（与 Python 版 runner 一致）──
+# 运行目录名在省略 --run-id 时是时间戳，下游（尤其 skill-doctor 自动读取最新评测结果）
+# 无法猜测，故在技能目录留下指向最近一次运行的指针文件。
+python3 - "$RESULTS_ROOT" "$SKILL_NAME" "$RUN_ID" "$WS" "$QUALITY_REPORT" "$SPEC_DIR" <<'PYEOF' 2>/dev/null || echo "   ⚠ LATEST.json 写入失败（不影响主流程）"
+import json, sys, time
+from pathlib import Path
+root, skill, run_id, ws, qr, spec = sys.argv[1:7]
+p = Path(root) / skill / "LATEST.json"
+p.parent.mkdir(parents=True, exist_ok=True)
+p.write_text(json.dumps({
+    "skill_name": skill,
+    "run_id": run_id,
+    "workspace": ws,
+    "quality_report": qr,
+    "benchmark_report": str(Path(spec) / "benchmark_report.md"),
+    "problem_report": str(Path(spec) / "problem_report.md"),
+    "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+print(f"▶ 本次运行标识：{run_id} → {ws}")
+PYEOF
 # 阶段 0 中间产物统一归入 results/ 子目录（类比 spec/results），顶层仅留最终报告
 QUALITY_RESULTS_DIR="$QUALITY_DIR/results"
 QUALITY_SCORE_OUT="$QUALITY_RESULTS_DIR/quality_score.json"
@@ -156,8 +201,31 @@ run_stage0() {
   [[ -f "$TPL" ]] && VALIDATE_ARGS+=(--template "$TPL")
   PLAN="$QUALITY_RESULTS_DIR/${SKILL_NAME}_eval_plan.md"
   [[ -f "$PLAN" ]] && VALIDATE_ARGS+=(--plan "$PLAN")
-  run_step "[开始阶段] 0/b validate_quality_report (0A 客观数据门禁)" \
-    python3 scripts/validate_quality_report.py "${VALIDATE_ARGS[@]}" || true
+  # 0A 客观数据门禁：原 `|| true` 把校验报错**完全吞掉**，门禁形同虚设。
+  # 与 Python 版 runner 一致改为「**可见但不阻断**」：非 0 退出时逐条打印 errors。
+  # 暂不中断（首次生效的门禁可能拦下历史数据瑕疵导致整轮中断），观察一轮后再评估升级。
+  echo ""
+  echo "▶ [开始阶段] 0/b validate_quality_report (0A 客观数据门禁)"
+  _GATE_JSON="$QUALITY_RESULTS_DIR/_0a_gate.json"
+  set +e
+  python3 scripts/validate_quality_report.py "${VALIDATE_ARGS[@]}" > "$_GATE_JSON"
+  _gate_rc=$?
+  set -e
+  if [[ $_gate_rc -ne 0 ]]; then
+    echo "⚠️ [0A 门禁] 客观数据校验未通过（**当前不阻断**，仅提示）：" >&2
+    python3 - "$_GATE_JSON" <<'PYEOF' 2>/dev/null || true
+import json, sys
+try:
+    d = json.load(open(sys.argv[1], encoding="utf-8-sig"))
+    for e in (d.get("errors") or [])[:10]:
+        print(f"   ✗ {e}", file=sys.stderr)
+except Exception:
+    pass
+PYEOF
+    echo "   详情见 $_GATE_JSON；待评估后决定是否升级为阻断门禁。" >&2
+  else
+    echo "   ✅ 0A 门禁通过（客观数据校验无阻断项）"
+  fi
 
   # 阶段 0B 可用性预检
   mkdir -p "$SAMPLE_DIR"
@@ -226,7 +294,10 @@ lines = ["# 待 AI 裁定清单（P7）", "",
     "> 脚本只提供客观线索与依据材料，**不代为裁定**（自动填充等同编造结论）。",
     "> 功能表（function_table）须归纳**服务场景**（技能为用户做什么），",
     "> 依据层次：①frontmatter description → ②When to Use → ③过程中的服务声明；",
-    "> 注意 `--mode start` 这类是**触发方式**，不是服务名。", "",
+    "> 注意 `--mode start` 这类是**触发方式**，不是服务名。",
+    "> **F6（依据标注）**：功能表每条必须注明可定位出处 —— `SKILL.md:<行号>` 或",
+    "> `SKILL.md §<章节名>`；不得写「全文」「参见文档」。无出处将被",
+    "> `validate_function_table.py` 判违规并阻断（归纳不可回溯即等同臆造）。", "",
     f"待裁定维度共 **{len(pending)}** 个：", ""]
 for name, v in pending:
     lines.append(f"## `{name}`")
@@ -247,7 +318,7 @@ lines += ["---", "", "## 填写后如何生效", "",
     "python3 scripts/render_report.py \\",
     "  --data <RESULTS>/quality/results/report_data.json \\",
     "  --template assets/report.template.md \\",
-    "  --out <RESULTS>/quality/<技能名>评测.md",
+    "  --out <RESULTS>/quality/quality_report.md",
     "```"]
 open(out_path, "w", encoding="utf-8").write("\n".join(lines) + "\n")
 print(f"  📋 待裁定清单已生成：{out_path}（{len(pending)} 个主观维度待 AI 裁定）")
@@ -375,6 +446,12 @@ PY
 
 # ============================================================
 # 阶段 4 · 最后阶段聚合（独立函数，full/resume 调用）
+#
+# T-14 说明（执行顺序与编号不一致，勿按编号推断顺序）：
+#   本函数内部会先补齐「阶段 2/3（功能执行）」与「阶段 5（安全采集）」，最后才做聚合输出。
+#   因此**实际执行顺序为 2/3 → 5 → 4**：编号「5」的安全采集在编号「4」的聚合之前执行。
+#   编号沿用历史（安全采集原属 SpecAgent 阶段），顺序后来调整，故出现编号倒挂。
+#   完整重排涉及多处文档与脚本引用，暂以本注释 + 运行日志显式披露，避免误读。
 # 进入前自动补齐缺失的执行产物（阶段 2/3 真实驱动被测技能 + 阶段 5 安全采集），
 # 不再「停等人工」：阶段 2/3/5 本就由 exec_*.py 真实自动执行（联网调被测技能声明端点），
 # 缺产物说明自动执行失败（被测技能不可达等真实错误），此时 exit 1 并明确报错（非静默等待）。
@@ -410,6 +487,7 @@ run_stage4() {
             --sample-root "$SAMPLE_DIR" \
             --skill-dir "$TARGET_SKILL"
       done
+      echo "    [T-14] 实际执行顺序：阶段 2/3（功能）→ 阶段 5（安全采集）→ 阶段 4（聚合）；编号 5 先于 4 执行。"
       # 安全探测：真实采集对抗证据 → 评分（两处产物：exec 供预检，spec 供阶段5）
       run_step "[阶段5] exec_security_evidence (真实对抗证据采集)" \
         python3 scripts/exec_security_evidence.py \
@@ -418,6 +496,13 @@ run_stage4() {
       run_step "[阶段5] exec_security_probes (安全探测评分)" \
         python3 scripts/exec_security_probes.py \
           --sample-root "$SAMPLE_DIR" --exec-root "$EXEC_DIR" --spec-root "$SPEC_DIR"
+      # T-06：解析并校验每个探测的评审知识资产（ASI 规格 + 传统视角的审计手册/案例库）。
+      # 使历史资产从"悬空"（删改清空也无人发现）变为可校验：缺失即本步骤失败。
+      run_step "[阶段5] resolve_review_context (评审知识资产解析与校验)" \
+        python3 scripts/resolve_review_context.py \
+          --manifest "$SAMPLE_DIR/benchmark_manifest.json" \
+          --safetest references/SafeTest \
+          --output "$SPEC_DIR/results/review_context.json"
     fi
     if ! check_exec_artifacts "$SAMPLE_DIR/benchmark_manifest.json"; then
       echo "" >&2
@@ -516,6 +601,28 @@ run_stage4() {
   echo "   3. 交叉对应：质量报告功能表 ↔ benchmark §4 条目应可对应（可测子集关系），口径差异须在报告中有说明"
   echo "   4. 产物新鲜：两份报告时间戳均为本轮（防旧产物当新结果，ERR-001）"
   echo "   —— 缺任何一项即未完成，不得向用户交付"
+
+  # ---- R13：把上方清单第 1 项（主观维度裁定）升级为**机器门禁** ----
+  # 此前它只是一行**文本提示**：缺裁定照样打印「✅ 开始阶段测评完成」并自动接续
+  # 阶段 1–4，导致「15 个主观槽位全空」的报告被当成成品交付（v4 实证）。
+  # 现固化：未裁定时不得宣告阶段完成、不得提示查看成品报告、不得进入下一阶段。
+  # 逃生阀：确需跑通流水线（如框架调研）时显式追加 --skip-subjective-gate。
+  if [[ "${SKIP_SUBJ_GATE:-0}" != "1" ]] && [[ -f "$SKILL_DIR/scripts/check_stage0_dod.py" ]]; then
+    echo ""
+    echo "▶ [阶段0 DoD] 检查主观维度是否已裁定（R13 机器门禁）"
+    if python3 "$SKILL_DIR/scripts/check_stage0_dod.py" \
+        --data "$QUALITY_RESULTS_DIR/report_data.json" \
+        --template "$SKILL_DIR/assets/report.template.md"; then
+      echo "   ✅ 主观维度已裁定，DoD 通过"
+    else
+      echo "" >&2
+      echo "⛔ [阶段0 DoD 未满足] 存在未裁定的主观槽位 —— 阶段 0 未完成。" >&2
+      echo "   按项目纪律：不得宣告阶段完成、不得提示查看成品报告、不得进入下一阶段。" >&2
+      echo "   请依据 quality/results/subjective.json 的 skip_reason 材料补做 AI 裁定后重跑。" >&2
+      echo "   确需跳过本门禁（仅建议框架调研场景）：追加 --skip-subjective-gate。" >&2
+      exit 1
+    fi
+  fi
 }
 
 # ============================================================

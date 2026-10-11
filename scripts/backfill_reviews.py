@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import json
 import subprocess
+import re
 import sys
 from pathlib import Path
 
 # 可移植路径方案：从脚本位置向上查找工程根目录
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]  # scripts/ -> 根目录
 
-from _common import _default_results_root, PROBE_GROUP_MAP
+from _common import _default_results_root, PROBE_GROUP_MAP, derive_security_group
 
 
 def _resolve_results_root() -> Path:
@@ -40,7 +41,10 @@ def run_grader(grader_dir: Path, result_dir: Path) -> dict:
     """
     result = subprocess.run(
         [
-            "python3", str(grader_dir / "run.py"),
+            # 用 sys.executable 而非硬编码 "python3"/"python"：
+            # Windows 无 python3（FileNotFoundError），而 sys.executable 恒为当前解释器，
+            # 跨平台且保证子 Grader 与主流程解释器一致。
+            sys.executable, str(grader_dir / "run.py"),
             "--task-root", str(grader_dir.parent),
             "--result-root", str(result_dir),
         ],
@@ -84,18 +88,45 @@ def main():
                 result_dir = legacy_result_dir
 
             if grader_dir.exists() and result_dir.exists():
+                # D1（v11 索引指出的误导性判断）：先查任务自身的真实执行状态。
+                # 若 result.json 标记 unsupported / blocked（未真实执行，如交互式技能无入口），
+                # Grader 因拿不到交付证据会返回 fail(0/10)——把「没执行」呈现成「失败」
+                # 属语义倒置，读者会误以为技能功能缺失。
+                # 故此处改为「跳过」：不计入失败数，检查点总数也记 0（避免出现 0/10 这样的失败观感）。
+                _unsupported = False
+                try:
+                    _rp = result_dir / "result.json"
+                    if _rp.is_file():
+                        _rj = json.loads(_rp.read_text(encoding="utf-8-sig"))
+                        _unsupported = str(_rj.get("status") or "").lower() in (
+                            "unsupported", "blocked",
+                        )
+                except (OSError, ValueError):
+                    _unsupported = False
+
                 grading = run_grader(grader_dir, result_dir)
                 status = grading["status"]  # "pass" 或 "fail"
-                task[state_field] = "pass" if status == "pass" else "fail"
-                task[audit_field] = "pass" if status == "pass" else "fail"
-                task[passed_field] = grading["passed"]
-                task[failed_field] = grading["total"] - grading["passed"]
-                task[total_field] = grading["total"]
+                if _unsupported:
+                    task[state_field] = "skipped"
+                    task[audit_field] = "skipped"
+                    task[passed_field] = 0
+                    task[failed_field] = 0
+                    task[total_field] = 0
+                    task.setdefault("unsupported_not_failed", True)
+                else:
+                    task[state_field] = "pass" if status == "pass" else "fail"
+                    task[audit_field] = "pass" if status == "pass" else "fail"
+                    task[passed_field] = grading["passed"]
+                    task[failed_field] = grading["total"] - grading["passed"]
+                    task[total_field] = grading["total"]
 
                 # 写入 grading_result.json 作为审计追踪
                 grading_path = result_dir / "grading_result.json"
                 grading_path.write_text(json.dumps(grading, ensure_ascii=False, indent=2))
-                print(f"  {tid}/{mode}: {status} ({grading['passed']}/{grading['total']})")
+                if _unsupported:
+                    print(f"  {tid}/{mode}: 跳过（任务未真实执行，不计入失败）")
+                else:
+                    print(f"  {tid}/{mode}: {status} ({grading['passed']}/{grading['total']})")
             else:
                 print(f"  {tid}/{mode}: 跳过（缺少 grader 或结果目录）")
 
@@ -143,7 +174,18 @@ def main():
 
     for task in tasks_data["security_tasks"]:
         tid = task["task_id"]
-        preferred_cat = PROBE_GROUP_MAP.get(tid, "abnormal")
+        # T-13：PROBE_GROUP_MAP 的 SA_/SP_/SS_ 前缀已不适用于 probe_asiXX 命名（恒回退 abnormal）。
+        # 改为按探针 ID 推导（probe_asi03 → derive_security_group("ASI03")）；无法推导时回退旧映射，
+        # 且 _find_security_grader_dir 仍会遍历全部类别，不会因猜错而漏找。
+        preferred_cat = ""
+        _m = re.match(r"^probe_(asi\d{2})$", tid, re.IGNORECASE)
+        if _m:
+            try:
+                preferred_cat = derive_security_group(_m.group(1).upper())
+            except ValueError:
+                preferred_cat = ""
+        if not preferred_cat:
+            preferred_cat = PROBE_GROUP_MAP.get(tid, "abnormal")
 
         grader_dir = _find_security_grader_dir(tid, preferred_cat)
         result_dir = spec_dir / "results" / "security" / "probes" / tid / "results"
@@ -160,7 +202,10 @@ def main():
             task["notes"] = ("无外部依赖端点，无外部攻击面，本探测项不适用"
                              "（N/A，非安全问题，未重跑 Grader）")
             task["all_checks_passed"] = True
-            print(f"  {tid}: pass (N/A 无外部攻击面)")
+            # T-08：N/A 保留 state=pass 仅为兼容下游渲染，但显式标记"不计入评分"
+            task["excluded_from_scoring"] = True
+            task["exclusion_reason"] = "无外部依赖端点，无外部攻击面，本探测项不适用（N/A，非安全问题）"
+            print(f"  {tid}: N/A 无外部攻击面（已标记不计入评分）")
             continue
 
         if grader_dir is not None and result_dir.exists():
@@ -179,6 +224,12 @@ def main():
             )
 
             task["all_checks_passed"] = grading["passed"] == grading["total"]
+
+            # T-07：探测未生效（如全部 405）时评分结果不计入通过率，避免"没测到"被当作"安全"
+            if grading.get("excluded_from_scoring"):
+                task["excluded_from_scoring"] = True
+                task["exclusion_reason"] = grading.get("exclusion_reason", "探测未生效")
+                print(f"  {tid}: ⚠ 已标记不计入评分（{grading.get('exclusion_reason')}）")
 
             # 写入 grading_result.json
             grading_path = result_dir / "grading_result.json"

@@ -14,7 +14,8 @@
     "skill_surface_tags": [            # 受控 9 标签子集（命中 Yes 的）
       {"tag": "exec_code", "evidence": ["SKILL.md:L42", "scripts/run.py:L7"], "mapped_asi": ["ASI01","ASI05"]}
     ],
-    "evidence_index": {...}            # tag -> 证据行列表
+    "evidence_index": {...},           # tag -> 证据行列表
+    "excluded_dirs": [...]             # 被排除目录（dir + 实际跳过的文件数），排除永不静默
   }
 
 退出码：0 = 成功（无论是否命中标签）；1 = 参数/IO 错误。
@@ -26,6 +27,8 @@ import json
 import re
 import sys
 from pathlib import Path
+
+from _common import TAG_TO_ASI
 
 # ── 受控词表（与 stage1_sample.md 步骤 1.5 完全一致；扩展须同步该文档与 config.md）──
 # 每个标签：判定信号（正则，行级匹配，大小写不敏感）+ 主要映射 ASI（仅作输出备注，非逻辑依赖）。
@@ -75,24 +78,50 @@ _SURFACE_TAGS: dict[str, dict] = {
 }
 
 # 预编译（大小写不敏感）
+# T-01：mapped_asi 收敛为单一权威源（_common.TAG_TO_ASI）。
+# 原各标签内联的 mapped_asi 字面量保留仅为兼容，实际输出一律取共享源，避免与守卫各写一份而漂移。
+for _tag, _spec in _SURFACE_TAGS.items():
+    if _tag in TAG_TO_ASI:
+        _spec["mapped_asi"] = sorted(TAG_TO_ASI[_tag])
+
 _COMPILED = {
     tag: [re.compile(s, re.IGNORECASE) for s in spec["signals"]]
     for tag, spec in _SURFACE_TAGS.items()
 }
 
 
-def _candidate_files(skill_dir: Path) -> list[Path]:
-    """扫描被测技能客观产物：SKILL.md + scripts/ 下的 .py/.md/.json/.sh（不递归未知深目录，限定合理范围）。"""
+# ── 扫描排除目录集合（第三方依赖 / 缓存 / 插桩残留）──
+# 边界：仅限「非技能本体」目录。tests/ examples/ docs/ 属技能本体，可能含真实能力证据，
+# 排除它们会伤召回（召回优先：漏检 = 虚假通过）。扩大本集合须单独立项并附召回影响评估。
+_EXCLUDED_DIRS: frozenset[str] = frozenset({"node_modules", ".venv", "venv", "__pycache__", ".trace"})
+
+
+def _candidate_files(skill_dir: Path) -> tuple[list[Path], list[dict]]:
+    """扫描被测技能客观产物：SKILL.md + scripts/ 下的 .py/.md/.json/.sh/.txt。
+
+    跳过被 _EXCLUDED_DIRS 命中的目录（依赖 / 缓存 / 插桩残留），避免第三方代码被计入打标。
+    返回 (候选文件, 被排除目录记录)；files = 实际跳过（本会入选）的文件数——排除须可追溯，禁止静默。
+    """
     out: list[Path] = []
+    excluded: list[dict] = []
     skill_md = skill_dir / "SKILL.md"
     if skill_md.is_file():
         out.append(skill_md)
     scripts = skill_dir / "scripts"
     if scripts.is_dir():
+        counts: dict[str, int] = {}
         for p in scripts.rglob("*"):
-            if p.is_file() and p.suffix in (".py", ".md", ".json", ".sh", ".txt"):
+            if not (p.is_file() and p.suffix in (".py", ".md", ".json", ".sh", ".txt")):
+                continue
+            parts = p.relative_to(scripts).parts
+            hit = next((d for d in parts[:-1] if d in _EXCLUDED_DIRS), None)
+            if hit is None:
                 out.append(p)
-    return out
+                continue
+            key = "/".join(("scripts",) + parts[: parts.index(hit) + 1])
+            counts[key] = counts.get(key, 0) + 1
+        excluded = [{"dir": k, "files": counts[k]} for k in sorted(counts)]
+    return out, excluded
 
 
 def _scan_one(path: Path) -> dict[str, list[str]]:
@@ -115,7 +144,8 @@ def _scan_one(path: Path) -> dict[str, list[str]]:
 def tag_skill(skill_dir: Path) -> dict:
     tags_out = []
     evidence_index = {}
-    for f in _candidate_files(skill_dir):
+    files, excluded = _candidate_files(skill_dir)
+    for f in files:
         for tag, evs in _scan_one(f).items():
             if evs:
                 evidence_index.setdefault(tag, [])
@@ -128,7 +158,11 @@ def tag_skill(skill_dir: Path) -> dict:
                 "evidence": sorted(set(evs)),
                 "mapped_asi": spec["mapped_asi"],
             })
-    return {"skill_surface_tags": tags_out, "evidence_index": evidence_index}
+    return {
+        "skill_surface_tags": tags_out,
+        "evidence_index": evidence_index,
+        "excluded_dirs": excluded,
+    }
 
 
 def main() -> None:
@@ -150,6 +184,10 @@ def main() -> None:
         n = len(result["skill_surface_tags"])
         print(f"✅ 攻击面打标完成：命中 {n} 个标签（共 {len(_SURFACE_TAGS)} 受控标签）"
               f"→ {args.output}")
+        if result["excluded_dirs"]:
+            tot = sum(e["files"] for e in result["excluded_dirs"])
+            print(f"   排除目录 {len(result['excluded_dirs'])} 个 / {tot} 个文件："
+                  + "、".join(f"{e['dir']}({e['files']})" for e in result["excluded_dirs"]))
     else:
         print(payload)
 

@@ -354,6 +354,7 @@
 7. **任务独立性**：一个 Case 目录仅包含一个任务/探测
 8. **0阶段（Stage 0）质量门禁前置**：本阶段样本生成**必须**在 0阶段 PreflightAgent 门禁通过后启动——`{QUALITY_REPORT}` 已由 PreflightAgent 产出且通过 `{PF_VALIDATOR}` 机器门禁（退出码 0 & `success=true`）。门禁未过不得生成任何样本（省钱省算力，先于功能/安全评测）。详见 `references/config.md`「质量评估（PreflightAgent）」常量与 `references/stage4_spec.md` 硬约束 #13–#15。
 9. **样本契约守卫（机器强制）**：生成 `benchmark_manifest.json` 后**必须**通过 `scripts/validate_manifest_contract.py --manifest <path>`（退出码 0 方可通过，否则下游聚合被 `run_eval_pipeline.sh` 的 `set -e` 阻断）。该守卫是**结构化不变量校验**（非语义分类器，句法/正则做正向语义分类不完备，故守卫只查结构）：① `functional_tasks` 每条目须**显式** `user_facing:true`（**举证责任反转**：默认非 functional，漏标即 FAIL）；② `functional_tasks` 不得含 `tier:l2_internal` 或 `user_facing:false`；③ `internal_checks` 每条目须 `user_facing:false` 或 `tier:l2_internal`；④ `summary` 的 `total_functional_tasks`/`total_internal_checks`/`common_tasks`/`hard_tasks` 须与数组长度及 `case_dir` 前缀计数自洽；⑤ `functional_tasks`∪`internal_checks` 的 `id` 唯一。语义正确性由 LLM 分类 + 人工复核兜底，守卫只保证"结构干净、无标签矛盾、计数自洽"。
+10. **样本语言跟随被测技能（R25）**：功能任务场景、安全探测描述（`TaskDescription.md` 的场景与 Objective）**必须**使用**被测技能自身的表述语言**——被测技能正文以中文编写，则场景与探测描述一律用中文；正文为英文则用英文。禁止默认写英文。实证：被测技能 `table_column_relations` 为中文技能，但生成的场景为 `Query column-level relationship information…`、安全探测为 `SQL Injection via parameter manipulation`，与技能语言不一致，读者与执行者理解成本上升，且偏离技能真实使用语境。
 
 ## 结果验证
 

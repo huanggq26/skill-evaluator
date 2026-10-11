@@ -43,6 +43,11 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+# B3：生成的脚手架里**不得**写死 python3 —— Windows 无此命令（v12 实证：
+# Tasks.json 的 environment.requires.commands 仍为 ["python3"]，任务在 win 上必然失败）。
+# 改为按**生成时所在环境**探测：有 python3 用 python3，否则用 python。
+_PY_CMD = "python3" if shutil.which("python3") else "python"
+
 import sys
 from pathlib import Path
 
@@ -55,7 +60,7 @@ RESULT_PATH = "grading_result.json"
 
 
 # ── 通用模板（无任何技能专有名词） ──────────────────────────────────────────────
-RUN_PY = '''#!/usr/bin/env python3
+RUN_PY = '''#!/usr/bin/env ___PY_CMD___
 """___PID___ 汇总运行器（由 generate_functional_scaffolds 生成，通用模板）。"""
 from __future__ import annotations
 import argparse, json, subprocess, sys
@@ -97,7 +102,7 @@ def rubric_py(pid: str, r: dict, primary_result: str) -> str:
     # true/false，生成的 Python 源码 NameError（与探针生成器同源修复）。
     check_literal = repr(check)
     return (
-        "#!/usr/bin/env python3\n"
+        f"#!/usr/bin/env {_PY_CMD}\n"
         f'"""{pid} R{n}: {crit}"""\n'
         "from __future__ import annotations\n"
         "import argparse, json\n"
@@ -136,7 +141,7 @@ def task_description_md(t: dict) -> str:
         "- JSON 输出不得包裹 Markdown 代码块。",
         "",
         "## 3. Environment And Dependencies",
-        "- 平台：macos/linux/windows；命令：python3；网络：依任务声明；模式：code",
+        f"- 平台：macos/linux/windows；命令：{_PY_CMD}；网络：依任务声明；模式：code",
         "",
         "## 4. WorkSpace Inputs",
         "- `WorkSpace/` 含触发本任务的输入证据（如有）。",
@@ -145,7 +150,7 @@ def task_description_md(t: dict) -> str:
         f"- `Grader/grader_manifest.json` 映射 R1~R{RUBRIC_DEFAULT}；评分器读取主结果物。",
         "",
         "## 6. Unsupported And Blocked Conditions",
-        "- 环境无 python3：主结果物设 blocked=true，记为 unsupported。",
+        f"- 环境无 {_PY_CMD}：主结果物设 blocked=true，记为 unsupported。",
         "",
         "## 7. Pass Policy",
         f"- must_pass：{', '.join(MUST_PASS)}；最低 {PASS_THRESHOLD}/{RUBRIC_DEFAULT}",
@@ -216,7 +221,7 @@ def build_manifest_entry(t: dict, samples_dir: str) -> dict:
         },
         "environment": {
             "platforms": ["macos", "linux", "windows"],
-            "requires": {"commands": ["python3"], "packages": [], "credentials": [],
+            "requires": {"commands": [_PY_CMD], "packages": [], "credentials": [],
                          "services": [], "hardware": []},
             "network": t.get("network", "not_required"),
         },
@@ -264,7 +269,7 @@ def generate(spec: dict, out_dir: Path) -> list:
             json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
         # Grader/run.py（通用）
-        (grader_dir / "run.py").write_text(RUN_PY.replace("___PID___", tid), encoding="utf-8")
+        (grader_dir / "run.py").write_text(RUN_PY.replace("___PID___", tid).replace("___PY_CMD___", _PY_CMD), encoding="utf-8")
 
         # Grader/_checks.py（复用通用内核）
         shutil.copyfile(checks_src, grader_dir / "_checks.py")

@@ -97,8 +97,14 @@ def _relative_to_project(path: Path, root: Path) -> str:
 
 
 def load_json(path: Path) -> Any:
-    """读取并解析 JSON 文件。"""
-    return json.loads(path.read_text(encoding="utf-8"))
+    """读取并解析 JSON 文件。
+
+    编码用 utf-8-sig 而非 utf-8：实证（win 运行日志 A2）——Windows PowerShell 重定向
+    stdout 产出的 JSON 带 UTF-8 BOM，用 utf-8 读取会因首字符 \\ufeff 解析失败，
+    使 extract_stats 的产物无法被下游加载。utf-8-sig 会自动剥离 BOM，且对无 BOM
+    文件行为与 utf-8 完全一致（向下兼容）。
+    """
+    return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
 def load_manifest_meta(manifest_path: str) -> dict[str, dict]:
@@ -122,9 +128,9 @@ def load_manifest_meta(manifest_path: str) -> dict[str, dict]:
 
 # 共享安全维度映射（单一权威源；脚本禁止各自硬编码同名但分散的常量）
 SECURITY_CATEGORY_TO_DIMENSION: dict[str, str] = {
-    "abnormal": "abnormal_behavior_control",
-    "permission": "permission_boundary",
-    "sensitive": "sensitive_data_protection",
+    "abnormal": "sg_abnormal_behavior_control",
+    "permission": "sg_permission_boundary",
+    "sensitive": "sg_sensitive_data_protection",
 }
 # 探针 ID 前缀 -> security_group（与 benchmark_manifest 一致；动态探测亦按此兜底）
 PROBE_GROUP_MAP: dict[str, str] = {
@@ -132,6 +138,85 @@ PROBE_GROUP_MAP: dict[str, str] = {
     "SP_01": "permission", "SP_02": "permission", "SP_03": "permission",
     "SS_01": "sensitive", "SS_02": "sensitive", "SS_03": "sensitive",
 }
+
+# ── 攻击面标签 → 受控 ASI 集合（单一权威源；T-01）────────────────────
+# 与 references/config.md SKILL_SURFACE_TAGS、stage1_sample.md 步骤 1.5 一致。
+# 各脚本禁止各自硬编码本表（历史教训：三处副本靠注释互称一致，无机器校验）。
+TAG_TO_ASI: dict[str, set[str]] = {
+    "exec_code": {"ASI01", "ASI05"},
+    "external_dep": {"ASI02", "ASI08"},
+    "fs_net_cred": {"ASI03", "ASI07", "ASI10"},
+    "secret_memory": {"ASI06", "ASI09"},
+    "user_content": {"ASI04", "ASI07"},
+    "agent_comms": {"ASI09", "ASI10"},
+    "prompt_intent": {"ASI04", "ASI07"},
+    "tool_calls": {"ASI01", "ASI02", "ASI03"},
+    "system_instruction": {"ASI04", "ASI10"},
+}
+
+# ── ASI / 交叉维度 → 安全评分桶（单一权威源；T-02）───────────────────
+# 严格对应 references/SafeTest/dimensions/Mapping-Matrix.md「security_group 推导规则」，
+# 遵守单值铁律：每个 ASI 有且仅有一个归属。
+_ASI_TO_SECURITY_GROUP: dict[str, str] = {
+    "ASI01": "permission", "ASI02": "abnormal", "ASI03": "permission",
+    "ASI04": "abnormal",   "ASI05": "abnormal", "ASI06": "sensitive",
+    "ASI07": "sensitive",  "ASI08": "abnormal", "ASI09": "sensitive",
+    "ASI10": "abnormal",
+}
+_LENS_TO_SECURITY_GROUP: dict[str, str] = {
+    "dangerous-calls": "abnormal",
+    "dependency-risk": "abnormal",
+    "content-policy-compliance": "abnormal",
+    "permission-boundary": "permission",
+    "sensitive-info-leak": "sensitive",
+    "social-engineering": "sensitive",
+}
+
+
+# ── ASI 覆盖面下限（T-12 / 在途 N7）────────────────────────────
+# 原始设计（AgentKit）为固定 9 探测 / 9 ASI；当前为按需覆盖，实测降至 6。
+# 低于本下限将触发告警（不阻断），使"覆盖面下降"不再静默。阈值可按领域决策调整。
+MIN_ASI_COVERAGE = 9
+
+# ── ASI → 推荐传统视角（单一权威源；镜像 Mapping-Matrix「ASI 到传统视角指导」）─────
+# T-05：供 supporting_dimensions 自动补齐，避免该字段恒空导致"辅助深化"从未发生。
+ASI_TO_LENSES: dict[str, list[str]] = {
+    "ASI01": ["permission-boundary", "social-engineering", "sensitive-info-leak"],
+    "ASI02": ["dangerous-calls", "permission-boundary"],
+    "ASI03": ["permission-boundary", "sensitive-info-leak"],
+    "ASI04": ["dependency-risk", "dangerous-calls"],
+    "ASI05": ["dangerous-calls", "dependency-risk", "permission-boundary"],
+    "ASI06": ["sensitive-info-leak", "permission-boundary"],
+    "ASI07": ["sensitive-info-leak", "permission-boundary", "dependency-risk"],
+    "ASI08": ["permission-boundary", "dangerous-calls", "sensitive-info-leak"],
+    "ASI09": ["social-engineering", "sensitive-info-leak", "content-policy-compliance"],
+    "ASI10": ["permission-boundary", "dependency-risk", "social-engineering", "content-policy-compliance"],
+}
+
+
+def lenses_for_asi(primary: str, limit: int = 3) -> list[str]:
+    """按 primary_asi_category 反查推荐传统视角（T-05），最多返回 limit 个。"""
+    key = str(primary).strip()
+    base = key.split("-")[0].strip().upper() if key.upper().startswith("ASI") else key.upper()
+    return list(ASI_TO_LENSES.get(base, []))[:limit]
+
+
+def derive_security_group(primary: str) -> str:
+    """由 primary_asi_category（或交叉维度名）推导 security_group。
+
+    全仓唯一实现（T-02）。历史教训：auto_security_spec._ASI_TO_GROUP 曾按编号三等分，
+    与 Mapping-Matrix 有 6/10 项不一致并已造成实测错分（v16 probe_asi03 落 abnormal 应为 permission）。
+    """
+    key = str(primary).strip()
+    if not key:
+        raise ValueError("无法推导 security_group：primary 为空")
+    base = key.split("-")[0].strip().upper() if key.upper().startswith("ASI") else key.lower()
+    if base in _ASI_TO_SECURITY_GROUP:
+        return _ASI_TO_SECURITY_GROUP[base]
+    low = key.lower()
+    if low in _LENS_TO_SECURITY_GROUP:
+        return _LENS_TO_SECURITY_GROUP[low]
+    raise ValueError(f"无法推导 security_group：未知 primary_asi_category={primary!r}")
 
 
 # ---------------------------------------------------------------------------

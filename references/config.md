@@ -68,7 +68,7 @@
 | `RUN_PLAN` | `{RESULTS_ROOT}/{SKILL_NAME}/run_plan.md` | **跨阶段统一运行计划（过程文档）**：Stage 1–4 各节（`[ ]`/`[x]`/`[~]` 步骤清单）；进入阶段先读对应节，含未勾 `[ ]` 则从中断点续跑、已勾跳过；阶段 0 计划为 `{PF_EVAL_PLAN}`（机器校验闭环）。用于中断后续跑，不被流水线消费 | 各阶段 | — |
 | `EXEC_LOG` | `{RESULTS_ROOT}/{SKILL_NAME}/execution_log.md` | **结构化执行日志（过程文档 / 自优化语料）**：记录执行中的位置、原因、异常情况、实际解决方案、后续建议，及计划违反的原因/位置/后续建议。不被流水线消费，仅供 skill-evaluator 自身后续优化 | 各阶段 | — |
 | `SECURITY_PROBES_DIR` | `{RESULTS_ROOT}/{SKILL_NAME}/spec/results/security/probes/` | 安全探测证据包（数量动态，各含 `task_metrics.json` 与 `results/verification.json`） | SpecAgent security | SpecAgent |
-| `QUALITY_REPORT` | `{RESULTS_ROOT}/{SKILL_NAME}/quality/{SKILL_NAME}评测.md` | **PreflightAgent（0阶段）产出的质量评测报告**（Markdown，含四大质量子类、无安全合规节、无评分节）；与后续阶段一致，落于 results 根下专属 `quality/` 子目录，可被 `SKILL_EVALUATOR_RESULTS_ROOT` 整体重定向 | Stage 0 质量门禁（PF 预检） | SpecAgent（`assemble_findings.py --quality-report`） |
+| `QUALITY_REPORT` | `{RESULTS_ROOT}/{SKILL_NAME}/quality/quality_report.md` | **PreflightAgent（0阶段）产出的质量评测报告**（Markdown，含四大质量子类、无安全合规节、无评分节）；与后续阶段一致，落于 results 根下专属 `quality/` 子目录，可被 `SKILL_EVALUATOR_RESULTS_ROOT` 整体重定向 | Stage 0 质量门禁（PF 预检） | SpecAgent（`assemble_findings.py --quality-report`） |
 
 > **阶段 0（`quality/`）目录约定**：`quality/` **顶层只放最终报告** `{QUALITY_REPORT}`；
 > 阶段 0 产生的**中间产物一律归入 `quality/results/` 子目录**（与 `spec/results/`、`sample/` 的
@@ -149,7 +149,7 @@
 
 > **运行状态策略索引（单一入口）**：`PROJECT_STATE` 的取值由"打开方式"自动判定（`scripts/_project_state.py` 的 `detect_project_state`），可用 `--project-state` 显式覆盖；其**完整策略（权限边界、会话日志、自优化闭环触发条件、判定启发式）的唯一权威定义见 `SKILL.md`「运行状态策略：调试态 vs 发布态」**一节。本表只登记变量与索引，**不重复定义策略正文**（避免 `SKILL.md` 与 `config.md` 双源漂移）。CLI 参数声明已由 `scripts/_common.py` 的 `add_project_state_arg` 统一收口，各脚本禁止再各自 `add_argument("--project-state", ...)`。
 
-> **门禁与单线分脱钩（Phase A）**：`scores.json` 不再以单线 `overall_score` 阈值判定上架，改为 `verdict`（规则式 veto + 分档，详见 `USER_GUIDE.md#6.1 门禁结论` 与已移出的 `evaluation_strategy.md`）。`SECURITY_GATE`/`QUALITY_FLOOR` 的权威值以 `scripts/cacu_total_score.py` 顶层常量为准。
+> **门禁与单线分脱钩（Phase A）**：`scores.json` 不再以单线 `overall_score` 阈值判定上架，改为 `verdict`（规则式 veto + 分档，详见 `USER_GUIDE.md#6.1 门禁结论` 与 `references/skill-evaluation-system.md`）。`SECURITY_GATE`/`QUALITY_FLOOR` 的权威值以 `scripts/cacu_total_score.py` 顶层常量为准。
 
 > **安全维度的双重身份（避免误读）**：安全评分同时承担两种角色，切勿混淆——
 > - **否决门禁（veto）**：`SECURITY_GATE=100` 为硬阈值，`security_score < 100` 即 `verdict=REJECT`，此判定独立于 `overall_score`，不看其他维度。
@@ -167,7 +167,7 @@
 
 | 常量 | 值 | 说明 |
 |------|-----|------|
-| `PF_REPORT_NAME` | `{SKILL_NAME}评测.md` | PreflightAgent 产出报告文件名（保存到 results 根下 `quality/` 子目录，即 `{QUALITY_REPORT}`） |
+| `PF_REPORT_NAME` | `quality_report.md` | PreflightAgent 产出报告文件名（保存到 results 根下 `quality/` 子目录，即 `{QUALITY_REPORT}`） |
 | `PF_SUBCLASSES` | 格式检查 / 对外依赖 / 内容验证 / 生态适配 | 质量评估四大子类；`{QUALITY_REPORT}` 须全含，且**无安全合规节、无评分节** |
 | `PF_GATE_STAGE` | 0阶段（Stage 0） | PreflightAgent 作为全流水线**预检质量门禁**，先于功能/安全评测运行（省钱省算力）；可单独运行，仅依赖 `{SOURCE_DIR}` |
 | `PF_RESULT_CHECK` | `{PF_VALIDATOR}` 机器门禁 | PF 结果检查从 Step 8「LLM 轻量自验」升级为**可机器强制**的门禁：`{PF_VALIDATOR} --report {QUALITY_REPORT} --plan {PF_EVAL_PLAN} --stats {PF_STATS} [--template {PF_REPORT_TEMPLATE}]`，A 层结构硬约束 + B 层客观事实锚点（反幻觉、需 LLM 兜底）+ **C 层评测计划闭环**（`--plan` 传入时，计划不得残留 `[ ]`，须全部 `[x]`/`[~]`，机器强制断点续评，替代 Step 8 人工/LLM 闭环） |
