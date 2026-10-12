@@ -76,3 +76,5 @@
 - `2026-10-12 10:49:50` | `/Users/family/.codebuddy/skills/skill-evaluator/openspec/changes/2026-10-12-eval-run-and-report-integrity/tasks.md` | set(11 处) | ✅ 非空行 30 → 30，体积 1532 → 1797；备份 tasks-pre-set-20261012-104950.md
 - `2026-10-12 14:35:36` | `/Users/family/.codebuddy/skills/skill-evaluator/openspec/changes/2026-10-12-informational-link-and-verdict-presentation/tasks.md` | set(10 处) | ✅ 非空行 33 → 38，体积 1755 → 2399；备份 tasks-pre-set-20261012-143536.md
 - `2026-10-12 14:35:50` | `/Users/family/.codebuddy/skills/skill-evaluator/.project/TASKLOG.md` | set(1 处) | ✅ 非空行 521 → 539，体积 32346 → 33245；备份 TASKLOG-pre-set-20261012-143550.md
+- `2026-10-12 15:07:47` | `references/stage0_preflight.md` | set(1 处) | ✅ 非空行 378 → 382，体积 29868 → 30083；备份 stage0_preflight-pre-set-20261012-150747.md
+- `2026-10-12 15:12:00` | `/Users/family/.codebuddy/skills/skill-evaluator/openspec/changes/2026-10-12-report-outline-normalization/tasks.md` | set(13 处) | ✅ 非空行 31 → 32，体积 1528 → 1787；备份 tasks-pre-set-20261012-151200.md

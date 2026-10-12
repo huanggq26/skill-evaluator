@@ -66,17 +66,17 @@
 > - 特别地，「调用其他 Tools / 系统命令」的客观候选已在本节正文列出；主观表格**只填风险**，
 >   无风险则留空（不要把候选重抄一遍）。
 
-### 格式检查
-#### Frontmatter 质量
+## 格式检查
+### Frontmatter 质量
 <!-- dim: frontmatter_quality type: objective -->
 
-#### 结构与组织
+### 结构与组织
 <!-- dim: structure_org type: objective -->
 
-#### 文法和语法
+### 文法和语法
 <!-- dim: grammar type: subjective -->
 
-### 对外依赖
+## 对外依赖
 
 > **模板说明**：以下候选由脚本静态扫描 SKILL.md/references 提取，AI 复核是否真实依赖。生成报告时删除本段。
 > **结构硬规则**：三类调用各由下方一个 `####` 子小节承载，**客观候选（field）与 AI 结论（dim）都填在该子小节内**；
@@ -86,49 +86,53 @@
 > 否则会出现「候选列表 + 无」自相矛盾的呈现（读者无法判断到底有没有依赖）。
 > 仅当候选与 AI 复核均为空时，整节写"无"。
 
-#### 调用其他Tools
+### 调用其他Tools
 <!-- field: deps_tools_candidates type: objective -->
 <!-- dim: deps_tools type: subjective -->
 
-#### 调用其他Skills
+### 调用其他Skills
 <!-- field: deps_skills_candidates type: objective -->
 <!-- dim: deps_skills type: subjective -->
 
-#### 调用系统命令
+### 调用系统命令
 <!-- field: deps_commands_candidates type: objective -->
 <!-- dim: deps_commands type: subjective -->
 
-### 内容验证
-#### 内容正确
+## 内容验证
+### 内容正确
 <!-- dim: content_correct type: subjective -->
 > **模板说明**：表述约束——只用用户能看懂的话说明结论，不得暴露技能内部文件名/路径（如 `references/api.md`、`errors.md` 这类内部文档路径）、内部变量名或程序代号。生成报告时删除本段。
 
-#### 内容完整
+### 内容完整
 <!-- dim: content_complete type: subjective -->
-#### 评测目标与技能范围对齐
+### 评测目标与技能范围对齐
 <!-- dim: content_scope_alignment type: subjective -->
-#### 内容冗余
+### 内容冗余
 <!-- dim: content_redundant type: subjective -->
-#### 内容不明确
+### 内容不明确
 <!-- dim: content_ambiguous type: subjective -->
 
-### 生态适配
-#### 分类与关联（Placement & Relations）
+## 生态适配
+### 分类与关联（Placement & Relations）
 <!-- dim: eco_placement type: subjective -->
 > **模板说明**：检查项——分类放置正确、关联 skill 有用、与同行无重复、关联依赖健康（依赖无环 + 与关联 skill 内容不冲突）。生成报告时删除本段。
 
-#### 身份与触发（Identity & Trigger）
+### 身份与触发（Identity & Trigger）
 <!-- dim: eco_identity type: subjective -->
 > **模板说明**：检查项——同名命名唯一、触发不过宽、触发边界清晰、用户表达缺失。生成报告时删除本段。
 
-#### 可移植性（跨机器/跨平台）
+### 可移植性（跨机器/跨平台）
 <!-- dim: eco_portability type: objective -->
 > **模板说明**：检查项——① 不得把技能文件写死在某台电脑的固定路径上（如 `/Users/...`、`/home/...`、`C:\...`、网络共享路径、`/tmp`、写死的安装目录等）；② 脚本开头的解释器声明须规范（统一用 `#!/usr/bin/env ...` 形式）；③ 脚本换行格式须兼容多系统（不得用 Windows 风格换行符）。判级说明：上述候选由评测工具自动提取，由人工/模型复核（排除文档举例路径）后判定，工具不自动判级。生成报告时删除本段。
 
-### 外部依赖可用性
+## 外部依赖可用性
 > **模板说明**：本技能若需访问外部网站/服务才能工作，会自动检测这些外部依赖当前能否正常连通，检测结果并入本章节。问题性质说明：① 技能自身缺陷（须修正，属结构性否决）；② 运行环境或网络临时问题（不否决，仅报告）；③ 配置缺失（须由用户或运行环境提供，不否决）。探测状态：若技能声明了外部依赖则已执行探测；若无外部依赖则跳过本章节，不参与否决。生成报告时删除本段。
 
 <!-- dim: dependency_availability type: objective -->
+
+## 支撑文件评估
+
+> **模板说明**：支撑文件（`references/`、`templates/`、`scripts/`、`assets/` 等随包子目录）与 SKILL.md **同为一等评测对象**，其四子类检查结果归入本节；「随包资源完整性」为其中的完整性子项。本节与「对外依赖」的边界：本节管**包内随附文件**，对外依赖管**运行时外部资源/系统资源**。
 
 ### 随包资源完整性
 
@@ -136,13 +140,13 @@
 
 <!-- dim: internal_integrity type: objective -->
 
-### 关键问题汇总
-#### 严重（影响正常加载运行）
+## 关键问题汇总
+### 严重（影响正常加载运行）
 客观检查项：
 <!-- dim: objective_critical type: objective -->
 AI 评估补充：
 <!-- dim: subjective_critical type: subjective -->
-#### 警告（影响逻辑解读或执行）
+### 警告（影响逻辑解读或执行）
 客观检查项：
 <!-- dim: objective_warning type: objective -->
 AI 评估补充：

@@ -352,7 +352,7 @@ def render_markdown(findings: List[dict], generated_at: str, quality_report: Opt
     # 报告自相矛盾。原因是两者口径不同（本数只计安全/功能/效能，不含阶段 0 静态预检项）。
     # 故显式说明，消除「摘要说 0、下面却有条目」的困惑。
     if quality_report:
-        out.append("- **质量类警告**：见「四、质量评估」章节（阶段 0 静态预检记录，"
+        out.append("- **质量类警告**：见「质量评估」章节（阶段 0 静态预检记录，"
                    "**不计入上方整改数** —— 上方只统计安全 / 功能 / 效能三类，两者口径不同）")
     out.append(
         f"- **baseline 对照（控制项，非技能缺陷，不计入整改）**：{n_func_baseline} 个任务在裸 Agent"
@@ -364,6 +364,14 @@ def render_markdown(findings: List[dict], generated_at: str, quality_report: Opt
         out.append(f"- **被排除的不可比 slower 任务（scope 不同，不计效能退化）**：{n_excl} 个")
     out.append("")
     out.append("### 已确认问题 · 按严重度")
+    out.append("")
+    out.append("> **「已确认」的判定口径**：已由工具产出**可定位证据**的问题——(1) 指向的评测规则确实存在且判定为未通过；"
+               "(2) 点名的技能代码行号确实存在；(3) 引用的证据文字确实出现在当时的探测记录里。")
+    out.append(">")
+    out.append("> 与之相对，「未核实」= 仅有线索、尚无证据支撑，挂起待独立复核（见末尾附录）。"
+               "**不是**「其余问题都未确认」，而是「其余条目尚缺证据」。")
+    out.append(">")
+    out.append("> 另注：本数只统计**安全 / 功能 / 效能**三类；阶段 0 静态预检的质量类警告单独计入「质量评估」章节，两者口径不同。")
     out.append("")
     if ver_sev:
         out.append("| 严重度 | 数量 |")
@@ -383,7 +391,7 @@ def render_markdown(findings: List[dict], generated_at: str, quality_report: Opt
         out.append("")
 
     # ── 确认安全问题明细（按严重度 → ASI 分组）──
-    out.append("## 一、已确认安全问题（SafeTest verified = true）")
+    out.append("## 已确认安全问题（SafeTest verified = true）")
     out.append("")
     if not verified:
         out.append("_本批次无经代码闸门核实确认的安全问题。_")
@@ -402,7 +410,7 @@ def render_markdown(findings: List[dict], generated_at: str, quality_report: Opt
             out.append("")
 
     # ── 效能退化（Phase B：efficiency_degradation，来自 Tasks.json both_succeed 任务）──
-    out.append("## 二、效能退化（Efficiency Degradation）")
+    out.append("## 效能退化（Efficiency Degradation）")
     out.append("")
     out.append("> 本节来自 `Tasks.json` 中 `scoring_path=both_succeed`（双方都能完成）且**可比**（`comparable=True`，即 baseline 与 with_skill 实现相同功能/产出/质量）的任务中，效能增值 `< 0`（with_skill 反而更慢）者——「做对了但更慢/更费」。")
     out.append("> 与门禁报告 `benchmark_report.md` 的 §8.1 重叠集同源；此处仅作**改进定位参考**。效能维度**不参加门禁决策**（不导致 REJECT），而是作为软指标（同 scope 真实变慢 → 软下调为 条件上架）。")
@@ -438,7 +446,7 @@ def render_markdown(findings: List[dict], generated_at: str, quality_report: Opt
     # 设计修正（2026-07-25 反思）：「功能任务问题」只应呈 **with_skill（被评测技能自身）** 的失败项，
     # 这才是技能所有者/下游自动优化工程要整改的缺陷。baseline 失败是「裸 Agent 对照」的预期控制结果，
     # 不代表技能缺陷，故降级为对照说明、不计入整改，避免把对照组失败误标为"待改问题"造成悖论。
-    out.append("## 三、功能任务问题（Functional Grading Failures · 仅 with_skill）")
+    out.append("## 功能任务问题（Functional Grading Failures · 仅 with_skill）")
     out.append("")
     out.append("> 本节只列 **with_skill（即被评测技能本身）** 模式下未通过的功能 rubric——这些才是技能自身需整改的缺陷，供技能所有者与下游自动优化工程定位改进。")
     out.append("> baseline（裸 Agent 对照）的失败属**预期控制结果**（无本技能时本就无法完成），用于证明技能价值，**不计入待整改问题**，仅作下方对照说明。")
@@ -473,7 +481,7 @@ def render_markdown(findings: List[dict], generated_at: str, quality_report: Opt
     except Exception:  # noqa: BLE001  文件不存在/解析失败 → 该节为空，不影响主流程
         _info_unreach = []
     if _info_unreach:
-        out.append("## 三点五、告知性链接不可达（Informational Links · 不影响上架）")
+        out.append("## 告知性链接不可达（Informational Links · 不影响上架）")
         out.append("")
         out.append("> 本节链接是**给使用者看的阅读/参考链接**，非技能运行时依赖；按可用性裁决"
                    "**不计入可用性评分、不触发上架否决**，仅在此记录以便技能作者后续修正文档。")
@@ -484,7 +492,7 @@ def render_markdown(findings: List[dict], generated_at: str, quality_report: Opt
         out.append("")
 
     # ── 质量评估（PreflightAgent，来自 quality_report.md；纳入阶段0实际发现的问题）──
-    out.append("## 四、质量评估（PreflightAgent）")
+    out.append("## 质量评估（PreflightAgent）")
     out.append("")
     if quality_report:
         out.extend(render_quality_section(quality_report))
@@ -494,7 +502,7 @@ def render_markdown(findings: List[dict], generated_at: str, quality_report: Opt
 
     # ── 评估范围与可信度（精简版；仅保留用户真正需要的「结论是否可信」说明，避免空注解噪声）──
     coverage_lines = [
-        "## 五、评估范围与可信度",
+        "## 评估范围与可信度",
         "",
         "- 本报告里的「已确认问题」均先在工具层面核对过三件事，确保不是凭空说的：(1) 指向的评测规则确实存在且判定为未通过；(2) 点名的技能代码行号确实存在；(3) 引用的证据文字确实出现在当时的探测记录里。",
         "- 安全探测记录覆盖八类行为证据（最终决定、触碰过的文件、泄露的值、调用的工具、对外调用、给用户看到的回复、写入的记忆、被污染的上下文），对目标劫持 / 提权 / 数据泄露 / 沙箱逃逸 / 资源滥用 / 提示注入 / 信息伪造 等风险覆盖充分，对供应链 / 多 Agent 协同 / 拒绝服务 覆盖有限。",
@@ -506,7 +514,7 @@ def render_markdown(findings: List[dict], generated_at: str, quality_report: Opt
 
     # ── 未核实项（附录，显式标注不计入；0 条则省略整节，避免误读为「未跑测试」）──
     if unverified:
-        out.append("## 六、未核实 / 待 LLM 复核（verified = false，不计入确认问题）")
+        out.append("## 未核实 / 待 LLM 复核（verified = false，不计入确认问题）")
         out.append("")
         out.append("> 说明：本栏**不是「有没有跑测试案例」的意思**，而是「安全探测里某条发现证据不足、未通过代码闸门核对，"
                    "所以暂时无法确定它是不是真问题」。它与测试是否执行无关——已执行且证据充分的发现都在上面各章。")
@@ -599,6 +607,16 @@ def _is_real_content(line: str) -> bool:
     return True
 
 
+def _shift_heading(ln: str) -> str:
+    """转录外部报告时把标题降一级，避免嵌入后层级跳跃/同级并列混乱。"""
+    s = ln.rstrip()
+    if s.startswith("### "):
+        return "#### " + s[4:]
+    if s.startswith("## "):
+        return "### " + s[3:]
+    return ln
+
+
 def render_quality_section(path: Optional[str]) -> List[str]:
     """读取 quality_report.md（阶段 0 PreflightAgent 静态质量报告），把其中的**问题发现**纳入本报告。
 
@@ -626,16 +644,25 @@ def render_quality_section(path: Optional[str]) -> List[str]:
     _SUMMARY_HEADINGS = ("关键问题汇总", "问题汇总", "主要问题")
     start = None
     end = None
+    start_level = 2
+
+    def _level(s: str) -> int:
+        return len(s) - len(s.lstrip("#"))
+
     for i, ln in enumerate(lines):
         s = ln.strip()
-        if start is None:
-            if s.startswith("### ") or s.startswith("## "):
-                title = s.lstrip("#").strip()
-                if any(h in title for h in _SUMMARY_HEADINGS):
-                    start = i + 1
+        if not (s.startswith("### ") or s.startswith("## ")):
             continue
-        # 遇到下一个同级或更高级标题即结束本节
-        if s.startswith("### ") or s.startswith("## "):
+        if start is None:
+            title = s.lstrip("#").strip()
+            if any(h in title for h in _SUMMARY_HEADINGS):
+                start = i + 1
+                start_level = _level(s)   # 记录本节层级
+            continue
+        # 遇到**同级或更高级**标题才结束本节。
+        # 实证缺陷：「关键问题汇总」由 H3 提升为 H2 后，其子项（### 严重 / ### 警告）
+        # 会被误判为「下一节」，导致本节被截断为空 → 问题报告写「未记录实质性问题」。
+        if _level(s) <= start_level:
             end = i
             break
     if start is not None:
@@ -657,7 +684,7 @@ def render_quality_section(path: Optional[str]) -> List[str]:
                        "事实性描述（对外依赖、调用关系、目录结构等）不纳入本报告，"
                        "完整内容见质量评估报告原文。")
             out.append("")
-            out.extend(re.sub(r"</?font[^>]*>", "", ln) for ln in section)
+            out.extend(_shift_heading(re.sub(r"</?font[^>]*>", "", ln)) for ln in section)
             out.append("")
             return out
         return ["_阶段 0 质量报告未记录实质性问题（严重 / 警告 / 提醒各档均为空）。_", ""]
