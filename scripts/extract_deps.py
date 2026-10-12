@@ -37,6 +37,19 @@ _URL_STOP = r"\s）），。\"'>`\u3000-\u303f\u4e00-\u9fff\uff00-\uffef"
 URL_RE = re.compile(rf"https?://[^{_URL_STOP}]+", re.IGNORECASE)
 # 连接串同样收紧：原集合缺「（」与 CJK，属同一缺陷。
 CONNSTR_RE = re.compile(rf"\b[a-zA-Z][\w+.-]*://[^\s\"'`，。）){_URL_STOP}]+")
+
+# ── 告知性（信息性）链接识别（G24 裁决 2026-10-12，选 A 方案）──
+# 为什么需要：提取器是**形式特征**提取（见下方注释），看到 https:// 就收，不区分
+# 「运行时依赖」与「给用户看的阅读链接」。实证（aihot v1）：
+#   openapi.yaml（文档链接，可达）→ 计入可用性拿满分 100
+#   /mp（语境「可以提示用户去 X 看」，不可达）→ 计入可用性 → 可用性 0 → REJECT
+# 同为文档/告知性质，只因网络状态不同就一边加分一边否决上架 → 口径不成立。
+# 裁决结论：告知性链接**不探活、不计入可用性评分、不上架否决**，仅写入问题报告供作者优化。
+_GUIDE_CTX_RE = re.compile(
+    r"提示用户去|提示用户|详见|参见|参考|参见文档|访问|前往|去看|看一下|阅读|打开|浏览")
+# API 形态优先于语境：「详见 API 文档 https://api.x/v1」仍须按运行时依赖处理，
+# 否则会误丢真依赖。
+_API_FORM_RE = re.compile(r"/api|/v\d|/openapi|/swagger|/graphql|/rpc", re.IGNORECASE)
 HOSTPORT_RE = re.compile(r"\b(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}\b:\d{2,5}")  # host:port
 # 显式声明语境关键词（仅用于在 SKILL.md 中标记 explicit 而非 implicit）
 EXPLICIT_CTX_RE = re.compile(
@@ -169,7 +182,7 @@ def extract_external_deps(skill_dir: str, existing: Optional[list] = None):
     texts = _collect_text(skill_dir)
     full_text = "\n".join(texts.values())
 
-    found_targets = []  # (target, source, ctx_hint)
+    found_targets = []  # (target, source, ctx_hint, informational)
     seen = set()
 
     # 非外部端点判定（P3①）：本提取器只做「形式特征」提取，会把文档内相对路径/文件名
@@ -215,14 +228,31 @@ def extract_external_deps(skill_dir: str, existing: Optional[list] = None):
             return True   # ③ 纯文件名（无路径）但带文档扩展名 → 弃
         return False
 
-    def _add(target, source, ctx_hint=""):
+    def _informational(url: str, text: str) -> bool:
+        """是否为告知性链接：① 引导语语境 且 ② 非 API 形态。两者同时成立才算。"""
+        if _API_FORM_RE.search(url):
+            return False
+        # 取该 URL 所在行（找不到则回退到前后 120 字窗口）
+        line = ""
+        for ln in text.splitlines():
+            if url in ln:
+                line = ln
+                break
+        window = line or text[max(0, text.find(url) - 120):text.find(url) + len(url) + 120]
+        if not _GUIDE_CTX_RE.search(window):
+            return False
+        # URL 须被反引号/ Markdown 链接包裹或直接裸写在散文里——代码块内的 curl 命令除外
+        stripped = window.replace(url, "", 1)
+        return not re.search(r"^\s*[-*]?\s*(curl|wget|httpie)\b", stripped.strip(), re.IGNORECASE)
+
+    def _add(target, source, ctx_hint="", informational=False):
         target = _norm_url(target) if "://" in target else target
         if not target or target in seen:
             return
         if _is_non_external(target):
             return  # 文档路径/文件名误报，不计入外部依赖
         seen.add(target)
-        found_targets.append((target, source, ctx_hint))
+        found_targets.append((target, source, ctx_hint, informational))
 
     for path, text in texts.items():
         is_skill_md = os.path.basename(path) == "SKILL.md"
@@ -237,7 +267,8 @@ def extract_external_deps(skill_dir: str, existing: Optional[list] = None):
                     text[max(0, text.find(url) - 80):text.find(url) + len(url) + 80]) else "implicit"
             else:
                 src = "implicit"
-            _add(url, src, "URL in " + os.path.basename(path))
+            _add(url, src, "URL in " + os.path.basename(path),
+                 _informational(url, text))
         # 连接串
         for cs in CONNSTR_RE.findall(text):
             cs = _norm_url(cs)
@@ -255,11 +286,13 @@ def extract_external_deps(skill_dir: str, existing: Optional[list] = None):
         if isinstance(d, dict) and d.get("target"):
             deps.append(d)
     # 上下文新增（manifest 未覆盖的）
-    for target, src, hint in found_targets:
+    for target, src, hint, info in found_targets:
         if target in existing_targets:
             continue
         deps.append({
             "id": f"auto_{len(deps)+1}",
+            # G24：告知性链接不探活、不计入可用性评分、不上架否决（仅写入问题报告）
+            "informational": bool(info),
             "target": target,
             "source": src,
             "kind": "transient",       # 自动发现项默认瞬态，避免误否决
@@ -283,7 +316,7 @@ def extract_external_deps(skill_dir: str, existing: Optional[list] = None):
 
     # 覆盖度核对：上下文中发现的访问点，是否都进了 deps
     dep_targets = {d.get("target") for d in deps}
-    coverage_gaps = [t for (t, _, _) in found_targets if t not in dep_targets]
+    coverage_gaps = [t for (t, _, _, _) in found_targets if t not in dep_targets]
 
     # 一致性核对：explicit 声明的 target 须真实出现在上下文（防 AI 编造 / 声明脱节）
     consistency_issues = []

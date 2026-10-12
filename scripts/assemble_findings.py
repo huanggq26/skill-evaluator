@@ -281,7 +281,8 @@ def render_markdown(findings: List[dict], generated_at: str, quality_report: Opt
                     efficiency_degradations: Optional[List[dict]] = None,
                     incomparable_exclusions: Optional[List[dict]] = None,
                     functional_untested: Optional[List[dict]] = None,
-                    project_state: str = "debug") -> str:
+                    project_state: str = "debug",
+                    sample_dir: str = "") -> str:
     functional = functional or []
     functional_untested = functional_untested or []
     efficiency_degradations = efficiency_degradations or []
@@ -461,6 +462,26 @@ def render_markdown(findings: List[dict], generated_at: str, quality_report: Opt
     # 问题报告（问题优先）不再重复罗列——既避免与基准报告重复，也避免把
     # 「评测能力限制」误植为「被测技能待整改问题」，干扰技能改进定位。
     # 因此本段不入问题报告。
+
+    # ── 告知性（信息性）链接不可达（G24：写入问题报告供作者优化，不影响上架）──
+    # 为什么单独一节：这类链接不是运行时依赖，按裁决不探活否决；但**链接失效仍是文档缺陷**，
+    # 用户会照着文档点进去失败。裁决要求"写入问题报告以便技能优化后续改进"，故在此呈现。
+    _info_unreach: list[dict] = []
+    try:
+        _dp = json.loads((Path(sample_dir or ".") / "dependency_probe.json").read_text(encoding="utf-8"))
+        _info_unreach = [d for d in (_dp.get("dimensions") or []) if d.get("informational_unreachable")]
+    except Exception:  # noqa: BLE001  文件不存在/解析失败 → 该节为空，不影响主流程
+        _info_unreach = []
+    if _info_unreach:
+        out.append("## 三点五、告知性链接不可达（Informational Links · 不影响上架）")
+        out.append("")
+        out.append("> 本节链接是**给使用者看的阅读/参考链接**，非技能运行时依赖；按可用性裁决"
+                   "**不计入可用性评分、不触发上架否决**，仅在此记录以便技能作者后续修正文档。")
+        out.append("")
+        for _d in _info_unreach:
+            out.append(f"- `{_d.get('target')}` —— HTTP {_d.get('http_status')}，"
+                       f"{_d.get('retry') or '建议更新该链接'}")
+        out.append("")
 
     # ── 质量评估（PreflightAgent，来自 quality_report.md；纳入阶段0实际发现的问题）──
     out.append("## 四、质量评估（PreflightAgent）")
@@ -831,6 +852,7 @@ def main() -> None:
         incomparable_exclusions=incomparable_exclusions,
         functional_untested=functional_untested,
         project_state=args.project_state,
+        sample_dir=str(Path(args.manifest).resolve().parent) if args.manifest else "",
     )
     Path(args.report_md).parent.mkdir(parents=True, exist_ok=True)
     # 版本标识写入产物：与 render_report.py / generate_outputs.py 一致。

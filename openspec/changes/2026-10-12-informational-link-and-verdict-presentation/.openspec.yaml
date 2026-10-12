@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-10-12
+
+# 本变更为依赖分类与报告呈现修复，不修改 specs 目录下的能力规约，
+# 故显式声明跳过 delta 校验。
+skip_specs: true

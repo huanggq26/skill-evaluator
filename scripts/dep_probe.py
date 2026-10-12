@@ -61,6 +61,35 @@ def _probe_url_for(dep: dict) -> str:
 def _probe_one(dep: dict) -> dict:
     target = dep.get("target") or dep.get("url") or ""
     dep_id = dep.get("id") or target
+    # G24（2026-10-12 裁决，A 方案）：告知性（信息性）链接不是运行时依赖。
+    # 不探活、不计入可用性评分与失败数、不触发结构性否决；其不可达由问题报告呈现，供作者优化。
+    if dep.get("informational"):
+        # 仍做一次轻量探测：目的是**记录可达性供问题报告呈现**（裁决要求"链接问题写入问题报告"），
+        # 但结果对被分/否决**完全中性**——score=None（不进分母）、structural=False（不否决）。
+        _code = None
+        try:
+            import urllib.request as _u
+            _req = _u.Request(target, headers={"User-Agent": "skill-eval-dep-probe/1.0"})
+            with _u.urlopen(_req, timeout=20) as _r:
+                _code = int(_r.getcode())
+        except Exception as _exc:  # noqa: BLE001
+            _code = getattr(_exc, "code", None)
+        _reachable = isinstance(_code, int) and 200 <= _code < 400
+        return {
+            "dep_id": dep_id, "target": target, "checker": "dep_probe.classify",
+            "status": "pass" if _reachable else "warn", "kind": "external_api",
+            "category": "informational",
+            "score": None,          # None = 不进可用性分母，不拉低评分
+            "structural": False,    # 不进结构性否决路径
+            "retry": "无需（告知性链接，不计入上架否决）" if _reachable
+                     else "建议更新该告知性链接（不计入上架否决，仅供作者优化）",
+            "message": ("告知性（信息性）链接，非运行时依赖：不计入可用性评分、不触发上架否决"
+                        + (f"；当前可达（HTTP {_code}）" if _reachable
+                           else f"；当前不可达（HTTP {_code}），已记入问题报告供技能作者后续优化")),
+            "http_status": _code, "latency_ms": None,
+            "informational": True,
+            "informational_unreachable": not _reachable,
+        }
     result = {
         "dep_id": dep_id,
         "target": target,
