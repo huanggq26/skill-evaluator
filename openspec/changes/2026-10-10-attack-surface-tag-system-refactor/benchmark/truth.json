@@ -1,0 +1,290 @@
+{
+  "purpose": "攻击面标签基准真值（第四轮 · v5 E1–E2 口径 · 裁定后合并）",
+  "merged_at": "2026-10-12 09:55:02",
+  "caliber": "v5（E1–E2 打标约束）",
+  "sources": {
+    "A": "benchmark/truth_a_round4.json",
+    "B": "benchmark/truth_b_round4.json",
+    "kappa": "benchmark/kappa_round4.json",
+    "sample": "benchmark/heldout_round4.json"
+  },
+  "n_skills": 14,
+  "tags": [
+    "exec_code",
+    "external_dep",
+    "fs_access",
+    "net_egress",
+    "cred_access",
+    "state_persist",
+    "agent_comms",
+    "system_instruction"
+  ],
+  "kappa_informative_only": 0.8967,
+  "pass": true,
+  "adjudication": [
+    {
+      "skill": "content-repurposer",
+      "tag": "exec_code",
+      "A": "no",
+      "B": "yes",
+      "ruling": "yes",
+      "reason": "A 按 token 清单字面判 no，但 token 清单只覆盖 Python/Node；scripts/ 下 7 个 .sh 本体即命令执行。采纳 B。**判据缺陷**已登记为 #2 任务：exec_code 须改为语言无关表述。",
+      "adopted_from": "B"
+    },
+    {
+      "skill": "admapix",
+      "tag": "external_dep",
+      "A": "no",
+      "B": "yes",
+      "ruling": "yes",
+      "reason": "A 漏看 frontmatter `clawdbot.requires.bins=[\"curl\"]`（裁定 22）。采纳 B。",
+      "adopted_from": "B"
+    },
+    {
+      "skill": "cloudq",
+      "tag": "external_dep",
+      "A": "no",
+      "B": "yes",
+      "ruling": "yes",
+      "reason": "A 漏看 frontmatter `metadata.openclaw.requires.bins=[\"python3\"]`（裁定 22）。采纳 B；**同时登记争议**：把 python3 这类通用运行时算依赖会使本标签近乎恒真，#3 须收窄。",
+      "adopted_from": "B"
+    },
+    {
+      "skill": "ai-shifu-course-creator",
+      "tag": "system_instruction",
+      "A": "yes",
+      "B": "no",
+      "ruling": "no",
+      "reason": "A 判宽：`system_prompt` 是**课程业务对象**的字段，不是技能自身/agent 运行时的系统指令；属裁定 26 反向情形（产出提示词内容）。采纳 B。",
+      "adopted_from": "B"
+    },
+    {
+      "skill": "content-ops",
+      "tag": "system_instruction",
+      "A": "yes",
+      "B": "no",
+      "ruling": "no",
+      "reason": "A 判宽：`kwargs[\"system\"]=system` 是**调用 LLM 时传入的参数**，不是写入或覆盖系统级指令。采纳 B；**裁定 26 须收紧**为：仅当写入技能自身 / agent 运行时的系统提示或安全策略。",
+      "adopted_from": "B"
+    }
+  ],
+  "tag_usability": {
+    "exec_code": {
+      "pos": 4,
+      "neg": 10,
+      "kappa": 0.8108,
+      "usable": true,
+      "reason": "κ=0.8108 ≥ 0.8"
+    },
+    "external_dep": {
+      "pos": 10,
+      "neg": 4,
+      "kappa": 0.6957,
+      "usable": false,
+      "reason": "κ=0.6957 < 0.8 → 真值不可用，须在 #3 修判据后重测（本轮分歧经裁定全部为 A 面失误，非判据歧义，但 κ 以实测值为准，不作修正）"
+    },
+    "fs_access": {
+      "pos": 7,
+      "neg": 7,
+      "kappa": 1.0,
+      "usable": true,
+      "reason": "κ=1.0 ≥ 0.8"
+    },
+    "net_egress": {
+      "pos": 10,
+      "neg": 4,
+      "kappa": 1.0,
+      "usable": true,
+      "reason": "κ=1.0 ≥ 0.8"
+    },
+    "cred_access": {
+      "pos": 6,
+      "neg": 8,
+      "kappa": 1.0,
+      "usable": true,
+      "reason": "κ=1.0 ≥ 0.8"
+    },
+    "state_persist": {
+      "pos": 6,
+      "neg": 8,
+      "kappa": 1.0,
+      "usable": true,
+      "reason": "κ=1.0 ≥ 0.8"
+    },
+    "agent_comms": {
+      "pos": 0,
+      "neg": 14,
+      "kappa": null,
+      "usable": false,
+      "reason": "本轮 0 阳性（分布事实）→ κ 无定义，不可用于任何度量；召回率须定向构造样本"
+    },
+    "system_instruction": {
+      "pos": 1,
+      "neg": 13,
+      "kappa": 0.44,
+      "usable": false,
+      "reason": "κ=0.44 < 0.8 → 真值不可用，须在 #3 修判据后重测（本轮分歧经裁定全部为 A 面失误，非判据歧义，但 κ 以实测值为准，不作修正）"
+    }
+  },
+  "caveats": [
+    "本真值**仅覆盖 14 个技能**，用于标签准入；样本量不足以支撑 U1 的「逐标签召回率 ≥ 0.90」硬门禁（单个判定误差 ≈ 1/14 ≈ 7%，与 10% 容差同量级）→ 须按同一 v5 口径 + 配额脚本扩样至 ≥ 30 个技能。",
+    "`agent_comms` 本轮 0 阳性：抽样代理预测的 3 个阳性经人工核验均为同名异义（钉钉邮箱 / 团队成员 / LLM 提示词）；自然分布下本池无 agent 间通信技能，召回率须定向构造样本。",
+    "前 34 个技能（truth_a.json / truth_b.json）为 v1–v4 语义口径产出，κ 未达标，**不得用作任何标签度量依据**，仅作过程档案。"
+  ],
+  "labels": {
+    "a-stock-data": {
+      "exec_code": "no",
+      "external_dep": "yes",
+      "fs_access": "yes",
+      "net_egress": "yes",
+      "cred_access": "yes",
+      "state_persist": "yes",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "exec=no【判据与事实不符，见回报③】本技能无 scripts/ 目录，全部代码在 SKILL.md 的 fenced 代码块内（E1）。但代码块内不含任何执行类调用（无 subprocess / os.system / os.popen / Popen / exec( / eval( / importlib / execSync / child_process），按 exec_code 判据字面判 no。external_dep=E3→E2 SKILL.md:L155 `pip install mootdx requests pandas stockstats`、L2085 同（安装命令按 E2 计）。fs=E1（均在 fenced 代码块内）SKILL.md:L484-L485 `target.parent.mkdir(parents=True, exist_ok=True)` + `target.write_bytes(r.content)`；L767-L768 `p.parent.mkdir(parents=True, exist_ok=True)`；L776 `path.read_text()`；L781-L784 `with open(path, \"w\") as f` + `f.write(...)`；L791 `pd.read_csv(path)`。net=E1 SKILL.md:L316 `urllib.request.urlopen(req, timeout=10)`；L413 `requests.get(url, params=params, headers=headers, timeout=10)`；L235 `EM_SESSION.get(url, params=params, ...)`；L529/L682/L750/L834/L1107/L1664 `requests.get`；L1747 `requests.post`；L895/L1395 `em_get(...)`；L1855 `urllib.request.urlopen(req, timeout=10)`。cred=E1 SKILL.md:L556 `os.environ.get(\"IWENCAI_BASE_URL\", ...)`、L557 `os.environ.get(\"IWENCAI_API_KEY\", \"\")`（变量名含 API_KEY，裁定 24）。state=E1 SKILL.md:L767 `~/.tradingagents/cache/northbound_daily.csv` + L781-L784 写 CSV 缓存（非临时路径，跨会话累积）。agent_comms=no。system_instruction=no。"
+    },
+    "admapix": {
+      "exec_code": "no",
+      "external_dep": "yes",
+      "fs_access": "no",
+      "net_egress": "yes",
+      "cred_access": "yes",
+      "state_persist": "no",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "exec=no 无 scripts/；SKILL.md 代码块内为 curl / jq / `[ -n ... ] && echo` 等命令，不含 subprocess / os.system / eval( / importlib / execSync / child_process 等执行类调用。external_dep=E2 frontmatter clawdbot.requires.bins=[\"curl\"]（裁定 22）。fs=no 代码块内无 open( / read_text( / write_text( / os.remove / shutil / fs.readFile / fs.writeFile 等文件读写 API；L174 `curl -s -o /dev/null` 为输出丢弃，非文件写。net=E1 SKILL.md:L82 `curl -s \"https://api.admapix.com/api/data/{endpoint}?{params}\"`、L86 `curl -s -X POST \"https://api.admapix.com/api/data/{endpoint}\"`、L174 `curl -s -o /dev/null -w \"%{http_code}\" \"https://api.admapix.com/api/data/quota\"`、L196 `curl -s -X POST \"https://deepresearch.admapix.com/research\"`、L206 行内代码 `https://deepresearch.admapix.com/research/{task_id}`。cred=E1 SKILL.md:L79 `admapix_auth_header=\"X-API-Key: ${ADMAPIX_API_KEY}\"`、L99 `[ -n \"${ADMAPIX_API_KEY:-}\" ]`、L188 `research_auth_header=\"Authorization: Bearer ${ADMAPIX_DEEP_RESEARCH_TOKEN}\"`（变量名含 API_KEY / TOKEN，裁定 24）；E2 frontmatter primaryEnv: ADMAPIX_API_KEY。state=no 无 json.dump / write_text / sqlite / localStorage 写入事实。agent_comms=no Deep Research Framework 为远端 HTTP 服务，无 spawn / subagent / mailbox 事实。system_instruction=no。｜【裁定】external_dep A=no/B=yes → 采纳 B（yes）"
+    },
+    "agent-mail": {
+      "exec_code": "no",
+      "external_dep": "yes",
+      "fs_access": "yes",
+      "net_egress": "yes",
+      "cred_access": "yes",
+      "state_persist": "yes",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "exec=no scripts/check_inbox.py 与 send_email.py 内无执行类调用（仅 import agentmail / json / os + open( + client.inboxes.messages.list/send）。external_dep=E3→E2 SKILL.md:L38 `pip install agentmail`、L43 `pip install --break-system-packages agentmail`、L204 `pip install agentmail`（安装命令按 E2 计）；E1 scripts/ 内确有第三方 import（from agentmail import AgentMail）。fs=E1 scripts/check_inbox.py:L19 `with open(CONFIG_PATH) as f`、send_email.py:L26 同；E1 SKILL.md fenced 代码块 L51-L59 `mkdir -p ~/.agentmail` + `cat > ~/.agentmail/config.json << 'EOF'`、L69 `open(os.path.expanduser('~/.agentmail/config.json'))`。net=E1 SKILL.md:L139 `curl -s \"https://api.agentmail.to/v0/inboxes\"`、L143 `curl -s \"https://api.agentmail.to/v0/inboxes/YOUR_EMAIL@agentmail.to/messages\"`。cred=E1 scripts/check_inbox.py:L22 `api_key = config.get('apiKey')` + L29 `AgentMail(api_key=api_key)`；send_email.py:L29,L36 同；E1 SKILL.md:L140/L144 `-H \"Authorization: Bearer $AGENTMAIL_API_KEY\"`（变量名含 API_KEY，裁定 24）。state=E1 SKILL.md:L51-L59 `mkdir -p ~/.agentmail` + `cat > ~/.agentmail/config.json` + `chmod 600`（写非临时路径的配置文件，跨会话复用）。agent_comms=no 按裁定 25，本技能的 mailbox 指邮件邮箱（同名异义），通信对象是人与外部服务，非 agent 之间；无 spawn / subagent / send_message 事实。system_instruction=no。"
+    },
+    "ai-shifu-course-creator": {
+      "exec_code": "no",
+      "external_dep": "yes",
+      "fs_access": "yes",
+      "net_egress": "yes",
+      "cred_access": "yes",
+      "state_persist": "yes",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "exec=no scripts/image_utils.py 与 scripts/shifu-cli.py 内无 subprocess / os.system / os.popen / Popen / exec( / eval( / importlib / execSync / child_process。external_dep=E2 scripts/requirements.txt（requests>=2.28、python-dotenv>=1.0、Pillow>=10.3.0、pillow-heif>=0.13）；E1 scripts/image_utils.py:L26『Pillow not installed. Run: pip install -r scripts/requirements.txt』、L81 同。fs=E1 scripts/image_utils.py:L85 `with Image.open(src_path) as im`；shifu-cli.py:L472-L473 `with open(outpath, \"wb\") as f` + `f.write(resp.content)`；L514/L584/L607/L656/L847/L866 `open(..., 'r')`；L18 `ENV_FILE = Path(...) / \".env\"`。net=E1 scripts/shifu-cli.py:L14 `import requests`、L20 `DEFAULT_BASE_URL = \"https://app.ai-shifu.cn\"`、L56/L75 `getattr(requests, method)(url, headers=headers, ...)`、L97 `requests.post(url, headers=headers, files=files, ...)`、L141 `http.post(url, headers=headers, json=body, ...)`、L218 `requests.post(`。cred=E1 shifu-cli.py:L42 `token = getattr(args, \"token\", None) or os.environ.get(\"SHIFU_TOKEN\")`（变量名含 TOKEN，裁定 24）；L36 `set_key(env_path, \"SHIFU_TOKEN\", token)`。state=E1 shifu-cli.py:L30-L36 `save_env()` docstring『Persist token to the skill's .env file』+ `set_key(env_path, ...)` 写 .env；L25『Load environment variables from the skill's .env file』为对应回读路径。agent_comms=no 无 spawn / subagent / mailbox / send_message 事实。system_instruction=no 产出物是 Teaching Prompt / Course Prompt（提示词产物），按规则 26『产出提示词文本给人用 → 判 no』。｜【裁定】system_instruction A=yes/B=no → 采纳 B（no）"
+    },
+    "aihot": {
+      "exec_code": "no",
+      "external_dep": "no",
+      "fs_access": "no",
+      "net_egress": "yes",
+      "cred_access": "no",
+      "state_persist": "no",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "exec=no 无 scripts/；代码块内仅 curl / jq / date 命令，无执行类调用。external_dep=no 无 requirements.txt / package.json / pyproject.toml / Pipfile；无 pip install / npm install；无 MCP server 声明；frontmatter 无 requires.bins。SKILL.md:L3 明示『不需要用户配置任何 API Key 或 MCP server』。fs=no 代码块内无任何文件读写 API。net=E1 SKILL.md:L26 `curl -sH \"User-Agent: $UA\" \"https://aihot.virxact.com/api/public/daily\"`；L84 `curl -sH ... \"https://aihot.virxact.com/api/public/items?mode=selected&since=$since&take=50\"`；L87/L99/L107/L116/L127/L146/L150/L153/L165/L169/L180/L185/L196/L199/L202/L206 同型 curl（均 https://aihot.virxact.com/api/public/*）。cred=no 无凭证读取事实；SKILL.md:L16『公开匿名可访，无需 token』、L69『鉴权：无（匿名）』。state=no 无 json.dump / write_text / sqlite 落盘；输出经 jq 管道到 stdout。agent_comms=no。system_instruction=no。"
+    },
+    "airbnb": {
+      "exec_code": "no",
+      "external_dep": "yes",
+      "fs_access": "no",
+      "net_egress": "no",
+      "cred_access": "no",
+      "state_persist": "no",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "exec=no 无 scripts/；代码块内为 `uvx airbnb-search ...` / `uv tool install ...` / `airbnb-search ...` 命令，无执行类调用（uvx 是运行时启动器，不属判据列举的执行类调用）。external_dep=E3→E2 SKILL.md:L31 `uv tool install airbnb-search`（安装命令按 E2 计）；E2 frontmatter openclaw.requires.bins=[\"uvx\"]（裁定 22）。fs=no 代码块内无文件读写 API。net=no【判据与事实不符，见回报③】代码块内无 requests / urllib / httpx / fetch( / axios / curl / wget / http.client；抓取行为由外部 airbnb-search 包完成，技能本体文件无网络事实。SKILL.md:L70『No API key needed — scrapes public search results』为散文（E3），不触发。cred=no SKILL.md:L70 明示 No API key needed；无凭证读取事实。state=no。agent_comms=no。system_instruction=no。"
+    },
+    "anti-distill": {
+      "exec_code": "no",
+      "external_dep": "no",
+      "fs_access": "no",
+      "net_egress": "no",
+      "cred_access": "no",
+      "state_persist": "no",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "exec=no 无 scripts/；代码块内仅 `mkdir -p {output_dir}_cleaned`（L224）与 markdown 模板，无执行类调用。external_dep=no 无依赖清单文件、无安装命令、无 MCP server 声明。fs=no【判据与事实不符，见回报③】全篇无 open( / read_text( / write_text( / os.remove / shutil / fs.readFile / fs.writeFile 等文件读写 API；L33-L38 只出现工具名（Read / Write / Edit / Glob / Grep / Bash），L224 只出现 `mkdir -p`，按『只出现工具名而无实际文件 API → 判 no』。net=no 无 HTTP 客户端调用或 curl / wget 命令。cred=no 无凭证读取事实；L119『[MASK] 含敏感信息（内部系统名、人名）』指脱敏处理，非凭证读取。state=no 输出 `{slug}_cleaned/*` 与 `{slug}_private_backup.md` 为产出物；无 json.dump / write_text / sqlite 事实。agent_comms=no 无 spawn / subagent / mailbox / send_message 事实。system_instruction=no 产出的是给人用的提示词/文档文本，按规则 26『产出提示词文本给人用 → 判 no』。"
+    },
+    "api-gateway": {
+      "exec_code": "no",
+      "external_dep": "yes",
+      "fs_access": "no",
+      "net_egress": "yes",
+      "cred_access": "yes",
+      "state_persist": "no",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "exec=no 无 scripts/；代码块内为 `maton ...` CLI 命令与 python heredoc，无 subprocess / os.system / eval( / importlib / execSync / child_process。external_dep=E3→E2 SKILL.md:L65 `npm install -g @maton-ai/cli`、L70 `brew install maton-ai/cli/maton`（安装命令按 E2 计）。fs=no 代码块内无文件读写 API（L34-L40 python heredoc 内无 open(）。net=E1 SKILL.md:L36-L38（fenced 代码块内实际代码语句）`req = urllib.request.Request('https://api.maton.ai/slack/api/conversations.list?...')` + `urllib.request.urlopen(req)`；L55-L56 行内代码 `https://api.maton.ai/slack/api/conversations.list?...`。cred=E1 SKILL.md:L37 `req.add_header('Authorization', f'Bearer {os.environ[\"MATON_API_KEY\"]}')`（变量名含 API_KEY，裁定 24）；L99 `export MATON_API_KEY=\"YOUR_API_KEY\"`。state=no 无 json.dump / write_text / sqlite 落盘；L38 `print(json.dumps(...))` 到 stdout。agent_comms=no 『Connect to 100+ APIs』为第三方服务路由，无 spawn / subagent / mailbox / send_message 事实。system_instruction=no。"
+    },
+    "apple-notes": {
+      "exec_code": "no",
+      "external_dep": "yes",
+      "fs_access": "no",
+      "net_egress": "no",
+      "cred_access": "no",
+      "state_persist": "no",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "exec=no 无 scripts/；行内代码中的 `memo notes` / `memo notes -a` 等是外部 CLI 子命令，非执行类调用。external_dep=E3→E2 SKILL.md:L14 `brew tap antoniorodr/memo && brew install antoniorodr/memo/memo`、L15 `pip install .`（安装命令按 E2 计）。fs=no 无 open( / read_text( / write_text( 等文件读写 API；L11/L41『export to HTML/Markdown』为散文描述（E3）。net=no 无 HTTP 客户端调用或 curl / wget 命令。cred=no 无凭证读取事实；L16『grant Automation access to Notes.app』为系统权限授予，非凭证读取。state=no 无落盘回读事实。agent_comms=no。system_instruction=no。"
+    },
+    "caveman": {
+      "exec_code": "no",
+      "external_dep": "no",
+      "fs_access": "no",
+      "net_egress": "no",
+      "cred_access": "no",
+      "state_persist": "no",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "全 8 标签均 no。exec=no 无 scripts/；L59-L61 代码块内是示例 SQL（DROP TABLE users;），无执行类调用。external_dep=no 无依赖清单文件、无安装命令、无 MCP server 声明；frontmatter 的 allowed-tools: Read,Write,Bash,Grep 是工具授权非依赖声明，且无 requires.bins（不触发裁定 22）。fs=no 无文件读写 API；L69-L72 只出现工具名（Read / Write / Bash / Grep），按『只出现工具名 → 判 no』。net=no 无 HTTP 调用。cred=no 无凭证读取；L37『Token expiry check use `<` not `<=`』为示例代码中的 token 一词，同名异义（指会话令牌过期判断），非凭证读取。state=no L18-L22『Persistence』指沟通模式持续生效，非落盘回读。agent_comms=no 无 spawn / subagent / mailbox / send_message 事实。system_instruction=no 按规则 26 明确情形：L26『it does not override the instructions or workflow of other active skills』属『不覆盖其他技能指令』的声明，判 no。"
+    },
+    "cloudq": {
+      "exec_code": "yes",
+      "external_dep": "yes",
+      "fs_access": "yes",
+      "net_egress": "yes",
+      "cred_access": "yes",
+      "state_persist": "yes",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "exec=E1 scripts/check_env.py:L245 `import subprocess` + L246 `subprocess.run(`。external_dep=E2 frontmatter metadata.openclaw.requires.bins=[\"python3\"]（裁定 22）。fs=E1 scripts/check_env.py:L115 `CONFIG_FILE.write_text(json.dumps(config...))`、L201 `META_FILE.read_text`、L212 `skill_md.read_text`、L283-L284 `VERSION_CACHE_FILE.write_text(...)`；scripts/credential_manager.py:L99-L100 `temp_file.write_text(json.dumps(data...))`。net=E1 scripts/check_env.py:L238 `requests.get(api_url, headers=...)`、L256 `https://clawhub.ai/api/v1/skills/`；credential_manager.py:L153 `json.dumps(body).encode`；E2 frontmatter permissions network: *.tencentcloudapi.com / cloud.tencent.com / clawhub.ai。cred=E1 scripts/check_env.py:L456 `os.environ.get(\"TENCENTCLOUD_SECRET_ID\", \"\")`；credential_manager.py:L460-L466 `os.environ.get(\"TENCENTCLOUD_SECRET_ID\"/\"..._KEY\"/\"TENCENTCLOUD_TOKEN\")`（变量名含 SECRET/TOKEN，裁定 24）。state=E1 同上 write_text 三处（config.json / version cache / temp_file），均为非临时路径落盘。agent_comms=no 全仓无 send_message / spawn / subagent / mailbox 事实。system_instruction=no 无 systemPrompt 赋值 / ignore previous / 覆盖安全策略语句。｜【裁定】external_dep A=no/B=yes → 采纳 B（yes）"
+    },
+    "content-ops": {
+      "exec_code": "yes",
+      "external_dep": "yes",
+      "fs_access": "yes",
+      "net_egress": "yes",
+      "cred_access": "no",
+      "state_persist": "yes",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "exec=E1 scripts/content-quality-gate.py:L20 `import subprocess` + L44 `subprocess.run(cmd, capture_output=True, text=True)`。external_dep=E2 requirements.txt（requests>=2.31.0、beautifulsoup4>=4.12.0、lxml>=4.9.0、scikit-learn>=1.3.0、pandas>=2.0.0、numpy>=1.24.0）。fs=E1 content-quality-gate.py:L65 `open(QUALITY_SCORES_FILE)`、L130-L131 `open(DRAFTS_OUTPUT_FILE,'w')` + `json.dump(filtered_data, f, indent=2)`、L145 `open(input_path)`、L227 `open(weights_file)`、L230-L231 `open(weights_file,'w')` + `json.dump`；content-quality-scorer.py:L129-L130 同。net=E1 scripts/editorial-brain.py:L24 `import urllib.request`、L49 `urllib.request.Request(`、L59 `urllib.request.urlopen(req, timeout=120)`。cred=no 按裁定 24：content-quality-gate.py:L24 / content-quality-scorer.py:L32 的 `os.environ.get(\"CONTENT_OPS_DATA_DIR\", ...)` 为配置类 `*_DIR` 变量名，判 no；全仓无其他凭证读取事实。state=E1 json.dump 写入 QUALITY_SCORES_FILE / DRAFTS_OUTPUT_FILE / WEIGHTS_FILE（非临时路径）。agent_comms=no 「expert panel」是模型扮演的评审角色，无 spawn / subagent / mailbox / send_message 事实。system_instruction=no 无 systemPrompt 赋值语句。注：SKILL.md Preamble 引用 telemetry/version_check.py，但 telemetry/ 目录在包内不存在（同 conversion-ops）。｜【裁定】system_instruction A=yes/B=no → 采纳 B（no）"
+    },
+    "content-repurposer": {
+      "exec_code": "yes",
+      "external_dep": "no",
+      "fs_access": "yes",
+      "net_egress": "yes",
+      "cred_access": "no",
+      "state_persist": "yes",
+      "agent_comms": "no",
+      "system_instruction": "yes",
+      "note": "exec=E1【判据与事实不符，见回报③】scripts/ 下 7 个 .sh 全部由命令执行构成：repurpose.sh:L65 `CONTENT=$(curl -sL \"$SOURCE_INPUT\" | html2text)`（管道命令执行）、L92 `mkdir -p \"$FINAL_DIR\"`、L143 `echo \"$RESULT\" > \"$OUTPUT_FILE\"`；setup.sh:L33 `cat > \"$EXAMPLE_FILE\" << 'EOF'`；各脚本 L27 `LLM_SYSTEM_PROMPT=$(jq -r ...)`。判据列举的执行类 token 全部面向 Python/Node，纯 .sh 技能字面上无一命中。external_dep=no 无 requirements.txt / package.json / pyproject.toml / Pipfile；无 pip install / npm install 命令；repurpose.sh:L65 的 `# requires html2text` 为注释非安装命令；jq / html2text / curl / pbcopy 为隐式依赖但无明示安装。fs=E1 repurpose.sh:L143 `echo \"$RESULT\" > \"$OUTPUT_FILE\"`；setup.sh:L23 `cp \"$SKILL_DIR/config.example.json\" \"$REPURPOSE_DIR/config.json\"`、L33 `cat > \"$EXAMPLE_FILE\" << 'EOF'`、L69 `echo '{\"repurposings\":[]}' > \"$REPURPOSE_DIR/repurpose-log.json\"`。net=E1 repurpose.sh:L65 `curl -sL \"$SOURCE_INPUT\"`；L62 `clawdbot tool-exists web_fetch`。cred=no 脚本无凭证读取；config.example.json:L93-L94 `system_prompt_prefix` + 注释『Uses Clawdbot's built-in LLM - no API key needed』。state=E1 setup.sh:L69 `echo '{\"repurposings\":[]}' > \"$REPURPOSE_DIR/repurpose-log.json\"`（写非临时路径的状态日志文件）；setup.sh:L23 写 config.json。agent_comms=no 无 spawn / subagent / mailbox / send_message 事实。system_instruction=E1 scripts/twitter-thread.sh:L27 `LLM_SYSTEM_PROMPT=$(jq -r '.system_prompt_prefix' \"$LLM_CONFIG\")`（system prompt 赋值语句）；L74/L79 注释显示其作为 `clawdbot llm --system \"$LLM_SYSTEM_PROMPT\"` 参数传入 LLM 调用（另 linkedin-post.sh / newsletter.sh / instagram-caption.sh / threads-post.sh 的 L27 同型）。｜【裁定】exec_code A=no/B=yes → 采纳 B（yes）"
+    },
+    "dingtalk-unified": {
+      "exec_code": "yes",
+      "external_dep": "yes",
+      "fs_access": "yes",
+      "net_egress": "yes",
+      "cred_access": "no",
+      "state_persist": "no",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "exec=E1 scripts/attendance_my_record.py:L14 `import subprocess` + L30 `subprocess.run(`；attendance_team_shift.py:L14,L28；bulk_add_fields.py:L22,L153。external_dep=E3→E2 SKILL.md:L27 fenced 代码块内 `npm install -g dingtalk-workspace-cli`（安装命令即使写在代码块里仍按 E2 计）。fs=E1 scripts/bulk_add_fields.py:L83 `with open(file_path, 'r', encoding='utf-8') as f`。net=E1 scripts/upload_attachment.py:L29 `from urllib.request import Request, urlopen` + L74 `urlopen(req, timeout=120)`。cred=no 按裁定 24：bulk_add_fields.py:L48 `os.environ.get('OPENCLAW_WORKSPACE', os.getcwd())` 为工作区路径类变量，非凭证；SKILL.md:L55『dws 按 CLI 版本分区存储 OAuth 凭证』属散文描述（E3），且凭证由 dws CLI 自身持有，不得反推。state=no 脚本内无 write_text / json.dump / sqlite 落盘事实（各脚本仅 `print(json.dumps(...))` 到 stdout）。agent_comms=no 无 send_message / spawn / subagent / mailbox 事实；『消息/群聊』是钉钉产品功能而非 agent 间通信。system_instruction=no。"
+    }
+  }
+}

@@ -77,7 +77,16 @@
       - 结论：**A 级 8 个**保留在打标集（`exec_code` / `external_dep` / `fs_access` / `net_egress` / `cred_access` / `state_persist` / `agent_comms` / `system_instruction`），其中 `exec_code` / `fs_access` / `state_persist` / `net_egress` **须改判据**（含恒真或过宽信号）、`agent_comms` / `system_instruction` **须定向构造样本**（自然分布 0 阳性）；**B 级 2 个**移出打标集（`user_content` / `prompt_intent`，转为 `evidence_level`）；**C 级 1 个**剔除（`tool_calls` 恒真且与 `exec_code` 恒重叠）
       - 该表同时是 **#3 的实施范围依据**：只有 A 级标签才允许进入信号收窄与门禁
 
-- [ ] **#1-h-b** 真值按 E1–E2 口径重标（**κ 阈值维持 0.8，不下调**）
+- [x] **#1-h-b** ✅（2026-10-12 完成）真值按 E1–E2 口径重标（**κ 阈值维持 0.8，不下调**）
+      - **结果：通过**。14 技能 × 8 标签 = 112 判定对；全部 8 标签 κ=0.906，**剔除恒值 `agent_comms` 后有判别信息的 7 个标签 κ=0.8967 ≥ 0.8**
+      - 四轮对比：0.4944 → 0.8063（口径污染）→ 0.5565 → 0.6000 → **0.8967**。**决定性证据：判别力问题出在判据形态（语义推断），不在标注态度，也不在标签语义本身**
+      - 逐标签可用性（写入 `truth.json` 的 `tag_usability`）：κ=1.0 四个（`fs_access` / `net_egress` / `cred_access` / `state_persist`）、`exec_code` 0.8108 → **可用**；`external_dep` 0.6957、`system_instruction` 0.44 → **不可用**；`agent_comms` 0 阳性 → 无 κ
+      - 5 处分歧**全部经裁定采纳 B 面**：`content-repurposer`/`exec_code`（A 按字面，判据缺 shell 形态）、`admapix` 与 `cloudq`/`external_dep`（A 漏看 frontmatter `requires.bins`）、`ai-shifu` 与 `content-ops`/`system_instruction`（A 判宽，把 LLM 调用参数与业务对象字段当成系统指令）
+      - 产物：`kappa_round4.json`、`truth.json`（裁定后合并，含逐标签可用性与三条 caveat）
+
+- [ ] **#1-i** 真值扩样至 **≥ 30 个技能**（U1 硬门禁的前置）
+      - 为什么必须扩：现真值仅 14 个技能，单个判定误差 ≈ 1/14 ≈ **7%**，与 U1「逐标签召回率 ≥ 0.90」的 10% 容差同量级 → **样本量不足以支撑硬门禁**
+      - 做法：沿用 v5 口径 + `build_benchmark_set.py --quota-pick --strict` 确定性扩样；`agent_comms` 阳性须**定向构造样本**（自然分布 0 阳性）
       - 前置 ✅ 已完成：配额已进脚本（见 #1-g）；第四轮样本 `benchmark/heldout_round4.json` = **14 个技能 × 8 标签 = 112 判定对**，由 `--quota-pick --strict` 确定性抽出，代理配额 8/8 标签达标、无恒值
       - 重标范围：11 列 → **8 列**（B/C 级 3 个标签的真值列作废）
       - 进展（2026-10-12）：规程 **v5（E1–E2 打标约束）** 已发布（含代码块/散文机械判据 + 边界裁定 22–26）；A 面已按 v5 标注 `benchmark/truth_a_round4.json`；B 面任务书 `benchmark/annotator_b_brief_round4.md` 已发出
@@ -95,10 +104,17 @@
       - 单一权威源的理由：T-01 的教训是三处各写一份映射 → 9/9 全不一致；字典同理，必须只有一份且与 `TAG_TO_ASI` 同层
       - 优先补的词形（实测缺口）：凭证类概念现仅 `token` / `令牌`，缺 `credential` / `secret` / `api_key` / `apikey` / `password` / `AK/SK`——对应 `benchmark/tag_judgeability.md` 中 `cred_access` 的判据
       - 验收：11 个标签均有概念定义 + 中英词形表；凭证类补齐 `credential` / `secret` / `api_key`；纯中文信号标签补齐英文词形；改词表跑基准集并报告 delta
+      - **#2-a**（B 面第四轮反馈 · 必做）`exec_code` 判据改为**语言无关**：现有 token 清单（`subprocess` / `os.system` / `Popen` / `execSync` / `child_process` …）全是 Python / Node 的 API 名，**纯 shell 技能（脚本本体即命令执行）字面上无处命中**——实测 `content-repurposer`（`scripts/` 下 7 个 .sh）因此被 A 面判 no，B 面靠「替判据补意图」才判 yes
+        - 建议表述：`scripts/` 下存在可执行脚本文件（`.py` / `.sh` / `.js` / `.ts`），或代码块内出现上述任一 token / `$(...)` 命令替换 / 管道调用外部命令
+      - **#2-b**（B 面第四轮反馈 · 必做）`state_persist` 的 API 清单补 **shell 写文件形态**：`>` / `>>` / `<<`（heredoc）/ `cp`，与 Python 的 `open(...,'w')` 同等对待。实测 `content-repurposer` 的 `echo ... > repurpose-log.json` 只能靠判据末尾兜底句收进来，判据脆
 
 - [ ] **#3** 标签集拆分与信号收窄
       - 锚点：`scripts/surface_tagging.py` `_SURFACE_TAGS`；改造方案文档「拆分方案」
       - 验收：`fs_net_cred` → `fs_access` / `net_egress` / `cred_access`；`secret_memory` → `state_persist`；`\.md` / `\.json` / `search` 等恒真信号已剔除或收窄；历史产物兼容策略已落地（见未决 U2）
+      - **#3-a**（B 面第四轮反馈 · 必做）`external_dep` 裁定 22 须**收窄**：现口径把 frontmatter `requires.bins: ["python3"]` 也算依赖 → 通用运行时进来会让标签近乎恒真。收窄为「清单文件 / 安装命令 / `requires.bins` 中**非通用运行时的外部 CLI**」
+        - 同项须给**隐式依赖**一个出口：B 报 `content-repurposer` 依赖 `jq` / `html2text`、`aihot` 依赖 `curl` / `jq`，都因无清单、无 `requires.bins` 而判 no，而写了 `requires.bins` 的 `admapix` 判 yes → **同样依赖 curl，判定只由「作者有没有登记」决定**，这不是真实依赖关系
+      - **#3-b**（B 面第四轮反馈 · 必做）`system_instruction` 裁定 26 须**收紧**为：仅当写入**技能自身 / agent 运行时**的系统提示或安全策略；作为 LLM 调用参数传入（`content-ops` 的 `kwargs["system"]=system`）、或写入业务对象字段（`ai-shifu` 课程的 `system_prompt`）→ no
+      - **#3-c** 记录 E1–E2 口径的**已知代价**（B 报 5 处「判据与事实不符」属同一类）：本体无代码事实的技能（`airbnb` 抓取在外部包里、`anti-distill` 只用工具名）会被静态层判 no → **由 U10 运行时观察补召回**，二者互补，**不得为了补召回而放宽静态判据**
 
 - [ ] **#4** 判定分层与全量输出（**决策 U3：不含 LLM 层**）
       - 锚点：`scripts/surface_tagging.py` `tag_skill()`；改造方案文档「各层具体职责」

@@ -1,0 +1,115 @@
+{
+  "round": 4,
+  "computed_at": "2026-10-12 09:55:02",
+  "caliber": "v5（E1–E2 打标约束）",
+  "sample": "heldout_round4",
+  "n_skills": 14,
+  "tags": [
+    "exec_code",
+    "external_dep",
+    "fs_access",
+    "net_egress",
+    "cred_access",
+    "state_persist",
+    "agent_comms",
+    "system_instruction"
+  ],
+  "kappa_all_8_tags": 0.906,
+  "kappa_informative_only": 0.8967,
+  "informative_tags": [
+    "exec_code",
+    "external_dep",
+    "fs_access",
+    "net_egress",
+    "cred_access",
+    "state_persist",
+    "system_instruction"
+  ],
+  "constant_tags": [
+    "agent_comms"
+  ],
+  "per_tag": {
+    "exec_code": {
+      "A_pos": 3,
+      "B_pos": 4,
+      "n": 14,
+      "kappa": 0.810810810810811,
+      "disagreements": [
+        "content-repurposer"
+      ],
+      "constant": false
+    },
+    "external_dep": {
+      "A_pos": 8,
+      "B_pos": 10,
+      "n": 14,
+      "kappa": 0.6956521739130433,
+      "disagreements": [
+        "admapix",
+        "cloudq"
+      ],
+      "constant": false
+    },
+    "fs_access": {
+      "A_pos": 7,
+      "B_pos": 7,
+      "n": 14,
+      "kappa": 1.0,
+      "disagreements": [],
+      "constant": false
+    },
+    "net_egress": {
+      "A_pos": 10,
+      "B_pos": 10,
+      "n": 14,
+      "kappa": 1.0,
+      "disagreements": [],
+      "constant": false
+    },
+    "cred_access": {
+      "A_pos": 6,
+      "B_pos": 6,
+      "n": 14,
+      "kappa": 1.0,
+      "disagreements": [],
+      "constant": false
+    },
+    "state_persist": {
+      "A_pos": 6,
+      "B_pos": 6,
+      "n": 14,
+      "kappa": 1.0,
+      "disagreements": [],
+      "constant": false
+    },
+    "agent_comms": {
+      "A_pos": 0,
+      "B_pos": 0,
+      "n": 14,
+      "kappa": null,
+      "disagreements": [],
+      "constant": true
+    },
+    "system_instruction": {
+      "A_pos": 3,
+      "B_pos": 1,
+      "n": 14,
+      "kappa": 0.43999999999999995,
+      "disagreements": [
+        "ai-shifu-course-creator",
+        "content-ops"
+      ],
+      "constant": false
+    }
+  },
+  "total_pairs": 112,
+  "total_disagreements": 5,
+  "threshold": 0.8,
+  "pass_overall": true,
+  "vs_previous_rounds": {
+    "round1": 0.4944,
+    "round2_heldout": 0.5565,
+    "round3_unbiased": 0.6,
+    "round4": 0.8967
+  }
+}
