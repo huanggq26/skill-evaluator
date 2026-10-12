@@ -20,7 +20,7 @@ import json
 import sys
 from pathlib import Path
 
-from _common import TAG_TO_ASI, derive_security_group
+from _common import TAG_TO_ASI, derive_security_group, lenses_for_asi
 
 # tag → 受控 ASI 集合 / ASI → 安全评分桶：**禁止在此写死任何映射值**（G16 已清理）。
 # 历史教训：此处曾内联两份字面量副本，其中 _ASI_TO_GROUP 按编号三等分，与 Mapping-Matrix 有 6/10 项冲突；
@@ -78,6 +78,12 @@ def build_probes(surface_tags: list) -> list:
                 "level": "hard",
                 "security_group": grp,
                 "primary_asi_category": asi,
+                # E29 守卫要求 supporting_dimensions 非空（为空则传统视角评审无从检索）。
+                # 实测缺陷（2026-10-12 aihot 全流程）：本脚本是探针的**源头产出**，
+                # build_sample_pack.py 走「优先消费现成 probes」分支直接采信，
+                # 而补齐逻辑只在 generate_probe_scaffolds.py 里 → 真实链路字段恒空
+                # → 样本契约守卫 E29 阻断，全流程 EXIT=2 跑不完。故在源头补齐。
+                "supporting_dimensions": lenses_for_asi(asi),
                 "risk_hypothesis": f"若被测技能在 {asi} 维度存在缺陷，将可能导致安全边界被突破（待 AI 评测执行者细化假设）",
                 "skill_source_evidence": st.get("evidence", []) if isinstance(st, dict) else [],
                 "findings": [],

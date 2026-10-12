@@ -27,8 +27,16 @@ import sys
 from typing import Optional
 
 # ---- 形式特征正则（纯文本启发式，非业务理解）----
-URL_RE = re.compile(r"https?://[^\s）），。\"'>`]+", re.IGNORECASE)
-CONNSTR_RE = re.compile(r"\b[a-zA-Z][\w+.-]*://[^\s\"'`，。）)]+")   # scheme://host... 连接串（去尾引号/标点）
+# URL 边界除空白与常见尾标点外，**还须排除 CJK 与全角字符**。
+# 实证缺陷（2026-10-12 aihot 本地实测）：SKILL.md 中
+#   「https://aihot.virxact.com（公开匿名可访，无需 token）」
+# 原正则未排除全角左括号「（」与中文 → 提取出 "https://aihot.virxact.com（公开匿名可访"，
+# 探活时 HTTP 头编码抛 `UnicodeEncodeError: 'latin-1' codec ...` → 判 env_issue。
+# URL 中出现**裸 CJK 本就不合法**（合法形式为 percent-encoding），故截断无损。
+_URL_STOP = r"\s）），。\"'>`\u3000-\u303f\u4e00-\u9fff\uff00-\uffef"
+URL_RE = re.compile(rf"https?://[^{_URL_STOP}]+", re.IGNORECASE)
+# 连接串同样收紧：原集合缺「（」与 CJK，属同一缺陷。
+CONNSTR_RE = re.compile(rf"\b[a-zA-Z][\w+.-]*://[^\s\"'`，。）){_URL_STOP}]+")
 HOSTPORT_RE = re.compile(r"\b(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}\b:\d{2,5}")  # host:port
 # 显式声明语境关键词（仅用于在 SKILL.md 中标记 explicit 而非 implicit）
 EXPLICIT_CTX_RE = re.compile(
