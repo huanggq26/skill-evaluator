@@ -67,8 +67,11 @@ _IGNORED_OUTPUT_DIRS = {".git", ".next", ".venv", "__pycache__", "build", "dist"
 _IGNORED_OUTPUT_FILES = {".package-lock.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock", "poetry.lock"}
 
 _FILE_MENTION_PATTERN = re.compile(r"([A-Za-z0-9_./\\-]+\.[A-Za-z0-9]+)")
+# 分隔符用 [/\\] 而非仅 "/": Windows 下 os.sep 为 "\\"，只认 "/" 会导致
+# 全部 task_metrics.json 匹配失败 → 字符数/耗时回填为 0 → 效用与效率指标失真。
 _TASK_ROOT_PATTERN = re.compile(
-    r"/(?P<skill>[^/]+)/exec/(?P<mode>baseline|with_skill)/(?P<kind>tasks)/(?P<task_id>[^/]+)(?:/results)?/task_metrics\.json$"
+    r"[/\\](?P<skill>[^/\\]+)[/\\]exec[/\\](?P<mode>baseline|with_skill)[/\\]"
+    r"(?P<kind>tasks)[/\\](?P<task_id>[^/\\]+)(?:[/\\]results)?[/\\]task_metrics\.json$"
 )
 
 

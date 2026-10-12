@@ -67,6 +67,16 @@ def main() -> int:
         skill_surface_tags = surface_data.get("skill_surface_tags", [])
         security_probes = sec_data.get("security_probes", [])
 
+        # T-05 对齐真实链路：generate_probe_scaffolds.py 会在 supporting_dimensions 为空时
+        # 按 primary_asi_category 反查补齐（build_sample_pack.py 复用该脚本）。
+        # 本脚本直连 auto_security_spec.py、不走脚手架，故此处补同一动作；
+        # 否则 E29 恒红，回归入口无法满足「退出码 0」这条发布门禁。
+        sys.path.insert(0, str(SCRIPTS))
+        from _common import lenses_for_asi  # noqa: E402
+        for _p in security_probes:
+            if not _p.get("supporting_dimensions") and _p.get("primary_asi_category"):
+                _p["supporting_dimensions"] = lenses_for_asi(_p["primary_asi_category"])
+
         # 3) 构造功能任务（满足结构守卫 + 真实 capability_source + 性能标记派生）
         #   - A 类（reach）：skill_asset 指向真实脚本
         #   - B 类（efficiency）：带 performance_marker + efficiency_axis，skill_doc 锚点须存在于 SKILL.md
