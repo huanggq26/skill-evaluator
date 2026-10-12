@@ -682,9 +682,20 @@
 | 项 | 内容 | 为什么必做 |
 |---|---|---|
 | **M1** | `references/stage0_preflight.md` 评测范围表的治理区路径改**语义指代** | 发布隔离门禁 **EXIT=1 阻断**（2 处）。依据 P8 教训：指针目标必须与所在文件的分发范围一致 |
-| **M2** | `.project/tmp/selfcheck_refactor.py` 补 `lenses_for_asi` 反查补齐 | 回归入口 **EXIT=1**（E29：`supporting_dimensions` 恒空）。根因 = 该脚本直连 `auto_security_spec.py`，**绕过** `generate_probe_scaffolds.py:296-302` 的补齐步骤 → **夹具缺步，非产品缺陷**（真实链路 `build_sample_pack.py:55` 复用该脚手架，字段会被补齐） |
+| **M2** | ①`.project/tmp/selfcheck_refactor.py` 补 `lenses_for_asi` 反查补齐；②**根因修复**：`scripts/auto_security_spec.py` 在探针**源头**补齐 `supporting_dimensions` | 回归入口 **EXIT=1**（E29：字段恒空）。⚠ **本条初版结论已被实测推翻，见下方更正** |
 | **M4** | `scripts/backfill_character_metrics.py` 的 `_TASK_ROOT_PATTERN` 支持 `\` | 只认 `/` 时 Windows 下全部 `task_metrics.json` 匹配失败 → 字符数 / 耗时回填为 0 → **效用与效率指标失真** |
 | **M5** | `VERSION` → `2026-10-12.1` | 发布基线 |
+
+**⚠ M2 结论更正（2026-10-12 aihot 全流程实测后）**：
+
+初版写「夹具缺步，**非产品缺陷**」——依据是 `build_sample_pack.py:55` 复用 `generate_probe_scaffolds.py`，
+推断真实链路会自动补齐。**该推断错误**：`build_sample_pack.py:429-431` 走的是
+「**优先消费现成 probes**」分支（`auto_security_spec.py` 的产出被直接采信），补齐逻辑**根本不会执行** →
+真实链路字段同样恒空 → 样本契约守卫 **E29 阻断，全流程 EXIT=2 跑不完**。
+
+**教训**：由「A 复用 B」推断「A 会执行 B 的全部逻辑」是不成立的——**复用不等于全路径执行**。
+判断链路行为必须实测，不能靠调用关系推断。已在 `auto_security_spec.py` 源头补齐（幂等，
+`generate_probe_scaffolds.py` 的补齐逻辑保留为二次兜底）。
 
 **发布前实测门禁**：
 
@@ -738,6 +749,55 @@ P0-③（`generate_outputs.py` 模板嵌套占位符 `{_count_text(...)}` KeyErr
 **已具备的前置成果**（均在变更的 `benchmark/` 下）：
 `truth.json`（第四轮裁定后合并，含 `tag_usability` 逐标签可用性）、`kappa_round4.json`、
 `tag_judgeability.md`（逐标签可判定性分级表）、`annotation_guide.md` v5（E1–E2 口径 + 裁定 22–26）。
+
+---
+
+## [治理·待办] G23. `extract_functional_tasks` 归纳被 JSON 片段污染（aihot 实测发现）
+
+**登记**：2026-10-12 ｜ **状态**：待办（已定位，未实施）
+
+**现象**：aihot 阶段 0C 归纳出的唯一功能任务 `FT01` 为：
+
+```json
+{"id":"FT01","objective":"用户场景：\"summary\": \"中文摘要（LLM 生成）\",；技能应基于自身真实能力…",
+ "title":"\"summary\": \"中文摘要（LLM 生成）\","}
+```
+
+——把 SKILL.md 里**响应示例的 JSON 字段片段**当成了「用户场景」与「功能名」。
+
+**后果**：一个技能只归纳出 1 条功能任务（aihot 实际能力远不止 1 条），且该任务是病句 →
+阶段 2/3 依此驱动执行 → **效用（`reach` / 覆盖率）指标失真**。
+
+**锚点**：`scripts/extract_functional_tasks.py`（"未命中用户功能区/路由表，改从全文归纳"分支）
+
+- [ ] 归纳前剔除**代码块 / JSON 示例 / 响应样例**再取候选（与 v5「代码块 ≠ 散文」的判据同型）
+- [ ] 候选须过滤引号包裹的 `key: value` 片段形态（如 `"xxx": "yyy",`）
+- [ ] 归纳条数下限告警（当前 1 条无告警）
+- [ ] 回归：aihot 应归纳出多条可用场景，且 `title` 为自然语言
+
+---
+
+## [治理·待裁决] G24. 散文页面链接探活失败触发「结构性否决」（aihot 实测发现）
+
+**登记**：2026-10-12 ｜ **状态**：**待领域裁决**（不擅自改语义）
+
+**现象**：aihot 的 `https://aihot.virxact.com/mp` —— 该 URL 出现在 SKILL.md 散文中，
+语境是「**可以提示用户去** `https://aihot.virxact.com/mp` 看公众号爆文页」，是**给用户的页面链接**，
+不是技能运行时依赖的 API 端点。实测该链接 301 → `aihot.news/moved/mp` → **403**（页面已迁移）→
+探活判 `contract_defect` → `structural_veto=True` → **`dependency_score=0`**。
+
+**为何不直接改**：否决语义属**领域决策**。TASKLOG P1 已有同型先例（「随包缺失是否参与上架否决」）
+明确写「**需人裁决**，且须写明文案，**不得静默改语义**」。故此处只登记，不改代码。
+
+**两个待选方案**：
+
+| 方案 | 做法 | 取舍 |
+|---|---|---|
+| A 提取侧过滤 | 把「引导语语境中的非 API 链接」（含"提示用户去/详见/参考/访问"）标为 `informational`，不探活、不否决 | 治本；但需防误伤"详见 API 文档 https://api.x/v1"这类真依赖 |
+| B 否决侧收窄 | 结构性否决仅对 **API 形态端点**生效（路径含 `/api/` 或 `/v\d`）；其余 4xx 降为告警 | 改动小；但依赖路径形态，非 API 类真依赖会漏否决 |
+
+**不做的话**：aihot 类技能的 `dependency_score` 恒为 0，报告中记「严重 / 修正后重测」——
+属**误判**，win 评测回来时会看到，须按已知问题解读。
 
 ---
 
