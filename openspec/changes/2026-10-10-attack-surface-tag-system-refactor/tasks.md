@@ -87,6 +87,7 @@
 - [ ] **#1-i** 真值扩样至 **≥ 30 个技能**（U1 硬门禁的前置）
       - 为什么必须扩：现真值仅 14 个技能，单个判定误差 ≈ 1/14 ≈ **7%**，与 U1「逐标签召回率 ≥ 0.90」的 10% 容差同量级 → **样本量不足以支撑硬门禁**
       - 做法：沿用 v5 口径 + `build_benchmark_set.py --quota-pick --strict` 确定性扩样；`agent_comms` 阳性须**定向构造样本**（自然分布 0 阳性）
+      - **#1-i-a**（B 面第四轮附报）扩样时须检查**包内文件完整性**：`content-ops`（与上一轮 `conversion-ops` 同一上游 ericosiu/ai-marketing-skills）的 Preamble 每次启动都跑 `telemetry/version_check.py` / `telemetry/telemetry_init.py`，但**这两个文件在包内不存在**（且用 `|| true` 容错）。不影响本轮判定，但会污染 U10 运行时观测（观测到"执行了不存在的文件"）→ 扩样时对该类技能打 `package_incomplete` 标记并单列
       - 前置 ✅ 已完成：配额已进脚本（见 #1-g）；第四轮样本 `benchmark/heldout_round4.json` = **14 个技能 × 8 标签 = 112 判定对**，由 `--quota-pick --strict` 确定性抽出，代理配额 8/8 标签达标、无恒值
       - 重标范围：11 列 → **8 列**（B/C 级 3 个标签的真值列作废）
       - 进展（2026-10-12）：规程 **v5（E1–E2 打标约束）** 已发布（含代码块/散文机械判据 + 边界裁定 22–26）；A 面已按 v5 标注 `benchmark/truth_a_round4.json`；B 面任务书 `benchmark/annotator_b_brief_round4.md` 已发出

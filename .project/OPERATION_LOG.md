@@ -69,3 +69,4 @@
 - `2026-10-12 09:40:34` | `/Users/family/.codebuddy/skills/skill-evaluator/openspec/changes/2026-10-10-attack-surface-tag-system-refactor/tasks.md` | set(2 处) | ✅ 非空行 101 → 106，体积 10013 → 10911；备份 tasks-pre-set-20261012-094034.md
 - `2026-10-12 09:56:48` | `/Users/family/.codebuddy/skills/skill-evaluator/openspec/changes/2026-10-10-attack-surface-tag-system-refactor/tasks.md` | set(3 处) | ✅ 非空行 106 → 121，体积 10911 → 13297；备份 tasks-pre-set-20261012-095648.md
 - `2026-10-12 09:58:10` | `/Users/family/Downloads/攻击面标签体系改造方案_2026-10-10.md` | set(1 处) | ✅ 非空行 634 → 665，体积 30520 → 32149；备份 攻击面标签体系改造方案_2026-10-10-pre-set-20261012-095810.md
+- `2026-10-12 09:58:57` | `/Users/family/.codebuddy/skills/skill-evaluator/openspec/changes/2026-10-10-attack-surface-tag-system-refactor/tasks.md` | set(1 处) | ✅ 非空行 121 → 122，体积 13297 → 13603；备份 tasks-pre-set-20261012-095857.md
