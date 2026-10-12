@@ -61,3 +61,5 @@
 - `2026-10-12 08:58:24` | `/Users/family/Library/Mobile Documents/com~apple~CloudDocs/Agent/skill-evaluator_risk-assessment-explainer.md` | set(1 处) | ✅ 非空行 835 → 835，体积 45888 → 46029；备份 skill-evaluator_risk-assessment-explainer-pre-set-20261012-085824.md
 - `2026-10-12 09:06:20` | `/Users/family/Downloads/攻击面标签体系改造方案_2026-10-10.md` | set(1 处) | ✅ 非空行 615 → 634，体积 29693 → 30520；备份 攻击面标签体系改造方案_2026-10-10-pre-set-20261012-090620.md
 - `2026-10-12 09:06:20` | `/Users/family/.codebuddy/skills/skill-evaluator/openspec/changes/2026-10-10-attack-surface-tag-system-refactor/tasks.md` | set(1 处) | ✅ 非空行 87 → 92，体积 8510 → 8902；备份 tasks-pre-set-20261012-090620.md
+- `2026-10-12 09:24:11` | `/Users/family/.codebuddy/skills/skill-evaluator/openspec/changes/2026-09-24-security-surface-scan-normalization/tasks.md` | set(2 处) | ✅ 非空行 40 → 40，体积 2531 → 2666；备份 tasks-pre-set-20261012-092411.md
+- `2026-10-12 09:24:11` | `/Users/family/.codebuddy/skills/skill-evaluator/openspec/changes/2026-10-10-attack-surface-tag-system-refactor/tasks.md` | set(2 处) | ✅ 非空行 92 → 101，体积 8902 → 10013；备份 tasks-pre-set-20261012-092411.md

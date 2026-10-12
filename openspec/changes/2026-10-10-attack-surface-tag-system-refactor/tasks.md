@@ -71,14 +71,24 @@
       - **补样已完成（`benchmark/supplement_set.json`）**：定向检索得 `agent_comms` 候选 37 个，核验后取 **4 个**——`agent-team-orchestration`（多 agent 团队编排 + 交接协议）、`content-factory`（五个 agent persona + `spawn separate sub-agents`）、`leader`（内置技能，"把活分给几个 agent 并行"）、`capability-evolver`（经 Proxy mailbox 与 hub 通信，**边缘，待 B 面裁定**）
       - **`system_instruction` 零阳性是分布事实，不是抽样失误**：295 个技能按"system prompt / 忽略先前 / 改写指令"检索仅 **2 个**候选，且核验后二者均为**产出提示词文本给人用**（`prompt-engineering-expert` 设计 system prompts、`novel-writer` 构建 LLM 提示词），**不是技能自身写入/改写系统级指令** → 按现口径均应为 no，即本池 **0 真阳性**。三个处置选项待裁决：① 与 `prompt_intent` 合并（前者可视作后者的极端形态）；② 改用定向构造样本度量召回率；③ 保留标签但在报告标注"真实分布罕见，召回率未经实测"
 
-- [ ] **#1-h** 真值按 E1–E2 口径重标（**κ 阈值维持 0.8，不下调**）
+- [x] **#1-h-a** ✅（2026-10-12 已完成）逐标签可判定性分级表
+      - 锚点：`benchmark/tag_judgeability.md`
+      - 结论：**A 级 8 个**保留在打标集（`exec_code` / `external_dep` / `fs_access` / `net_egress` / `cred_access` / `state_persist` / `agent_comms` / `system_instruction`），其中 `exec_code` / `fs_access` / `state_persist` / `net_egress` **须改判据**（含恒真或过宽信号）、`agent_comms` / `system_instruction` **须定向构造样本**（自然分布 0 阳性）；**B 级 2 个**移出打标集（`user_content` / `prompt_intent`，转为 `evidence_level`）；**C 级 1 个**剔除（`tool_calls` 恒真且与 `exec_code` 恒重叠）
+      - 该表同时是 **#3 的实施范围依据**：只有 A 级标签才允许进入信号收窄与门禁
+
+- [ ] **#1-h-b** 真值按 E1–E2 口径重标（**κ 阈值维持 0.8，不下调**）
+      - 前置：先修好抽样脚本的**每标签阴阳配额**（阳性 ≥3 且阴性 ≥3）——第三轮 4 个标签恒值的根因就是该项未落地；配额未满足前任何 κ 都不可作验收依据
+      - 重标范围：11 列 → **8 列**（B/C 级 3 个标签的真值列作废）
       - 锚点：`benchmark/truth_a.json` / `truth_b.json`；`annotation_guide.md`
       - 验收：① 先产出**逐标签可判定性分级表**（哪些标签能用 E1/E2 机械判定、哪些需语义推断并转 `evidence_level`）；② 对被保留在打标集内的标签，A/B 按"E1/E2 事实是否存在"重标；③ 重标后留出集样本 kappa ≥ 0.8 才合并 `truth.json`
       - 被移出打标集的标签**不再需要真值**（不再触发标签 → 无召回率可言），重标范围因此减半
       - 若重标后仍未达标 → 走兜底：**只承认可机械判定标签的度量**，其余在报告中标注"未经真值验证"
 
 - [ ] **#2** 词形字典与概念层改造
-      - 锚点：`scripts/surface_tagging.py` `_SURFACE_TAGS`；改造方案文档「词形扩展方法」
+      - 锚点：`scripts/surface_tagging.py` `_SURFACE_TAGS`；**落地位置 = `scripts/_common.py`（单一权威源）**；改造方案文档「词形扩展方法」
+      - **承接关系**：本项已合并 `2026-09-24-security-surface-scan-normalization` 的 **N1 / N2**（同为「概念 → 中英词形表」），两处计划重叠已消除，**禁止出现第二份字典**
+      - 单一权威源的理由：T-01 的教训是三处各写一份映射 → 9/9 全不一致；字典同理，必须只有一份且与 `TAG_TO_ASI` 同层
+      - 优先补的词形（实测缺口）：凭证类概念现仅 `token` / `令牌`，缺 `credential` / `secret` / `api_key` / `apikey` / `password` / `AK/SK`——对应 `benchmark/tag_judgeability.md` 中 `cred_access` 的判据
       - 验收：11 个标签均有概念定义 + 中英词形表；凭证类补齐 `credential` / `secret` / `api_key`；纯中文信号标签补齐英文词形；改词表跑基准集并报告 delta
 
 - [ ] **#3** 标签集拆分与信号收窄
