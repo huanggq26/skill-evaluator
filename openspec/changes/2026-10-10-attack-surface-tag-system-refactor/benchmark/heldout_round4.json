@@ -1,0 +1,451 @@
+{
+  "generated_at": "2026-10-12 09:32:47",
+  "source": "/Users/family/.codebuddy/skills-marketplace/skills",
+  "candidates": 262,
+  "constraints": {
+    "n": 14,
+    "min_scripts": 8,
+    "min_en": 5,
+    "min_zh": 5,
+    "min_per_class": 2
+  },
+  "check": {
+    "n": 14,
+    "has_scripts": 6,
+    "en": 8,
+    "zh": 6,
+    "per_class": {
+      "doc": 1,
+      "data": 4,
+      "web": 2,
+      "dev": 1,
+      "gen": 2,
+      "sys": 1
+    },
+    "quota": {
+      "n": 14,
+      "min_pos": 3,
+      "min_neg": 3,
+      "per_tag": {
+        "exec_code": {
+          "pos": 3,
+          "neg": 11,
+          "ok": true,
+          "constant": false
+        },
+        "external_dep": {
+          "pos": 7,
+          "neg": 7,
+          "ok": true,
+          "constant": false
+        },
+        "fs_access": {
+          "pos": 6,
+          "neg": 8,
+          "ok": true,
+          "constant": false
+        },
+        "net_egress": {
+          "pos": 10,
+          "neg": 4,
+          "ok": true,
+          "constant": false
+        },
+        "cred_access": {
+          "pos": 10,
+          "neg": 4,
+          "ok": true,
+          "constant": false
+        },
+        "state_persist": {
+          "pos": 7,
+          "neg": 7,
+          "ok": true,
+          "constant": false
+        },
+        "agent_comms": {
+          "pos": 3,
+          "neg": 11,
+          "ok": true,
+          "constant": false
+        },
+        "system_instruction": {
+          "pos": 3,
+          "neg": 11,
+          "ok": true,
+          "constant": false
+        }
+      },
+      "ok": true,
+      "constant_tags": []
+    },
+    "ok": true
+  },
+  "selected": [
+    {
+      "name": "cloudq",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/cloudq",
+      "lang": "zh",
+      "has_scripts": true,
+      "primary": "sys",
+      "class_scores": {
+        "doc": 0,
+        "data": 1,
+        "web": 0,
+        "dev": 0,
+        "gen": 0,
+        "sys": 11
+      },
+      "zh_ratio": 0.0868,
+      "quota_proxy": {
+        "exec_code": true,
+        "external_dep": false,
+        "fs_access": true,
+        "net_egress": true,
+        "cred_access": true,
+        "state_persist": true,
+        "agent_comms": false,
+        "system_instruction": false
+      }
+    },
+    {
+      "name": "content-ops",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/content-ops",
+      "lang": "en",
+      "has_scripts": true,
+      "primary": "gen",
+      "class_scores": {
+        "doc": 0,
+        "data": 0,
+        "web": 0,
+        "dev": 0,
+        "gen": 2,
+        "sys": 0
+      },
+      "zh_ratio": 0.0002,
+      "quota_proxy": {
+        "exec_code": true,
+        "external_dep": false,
+        "fs_access": true,
+        "net_egress": true,
+        "cred_access": true,
+        "state_persist": true,
+        "agent_comms": true,
+        "system_instruction": false
+      }
+    },
+    {
+      "name": "dingtalk-unified",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/dingtalk-unified",
+      "lang": "zh",
+      "has_scripts": true,
+      "primary": "doc",
+      "class_scores": {
+        "doc": 3,
+        "data": 0,
+        "web": 1,
+        "dev": 0,
+        "gen": 0,
+        "sys": 2
+      },
+      "zh_ratio": 0.0828,
+      "quota_proxy": {
+        "exec_code": true,
+        "external_dep": true,
+        "fs_access": true,
+        "net_egress": true,
+        "cred_access": true,
+        "state_persist": true,
+        "agent_comms": true,
+        "system_instruction": false
+      }
+    },
+    {
+      "name": "a-stock-data",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/a-stock-data",
+      "lang": "zh",
+      "has_scripts": false,
+      "primary": "data",
+      "class_scores": {
+        "doc": 0,
+        "data": 7,
+        "web": 0,
+        "dev": 1,
+        "gen": 0,
+        "sys": 0
+      },
+      "zh_ratio": 0.1564,
+      "quota_proxy": {
+        "exec_code": false,
+        "external_dep": true,
+        "fs_access": true,
+        "net_egress": true,
+        "cred_access": true,
+        "state_persist": false,
+        "agent_comms": false,
+        "system_instruction": false
+      }
+    },
+    {
+      "name": "admapix",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/admapix",
+      "lang": "zh",
+      "has_scripts": false,
+      "primary": "data",
+      "class_scores": {
+        "doc": 0,
+        "data": 8,
+        "web": 1,
+        "dev": 0,
+        "gen": 0,
+        "sys": 0
+      },
+      "zh_ratio": 0.0321,
+      "quota_proxy": {
+        "exec_code": false,
+        "external_dep": false,
+        "fs_access": false,
+        "net_egress": true,
+        "cred_access": true,
+        "state_persist": true,
+        "agent_comms": false,
+        "system_instruction": false
+      }
+    },
+    {
+      "name": "agent-mail",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/agent-mail",
+      "lang": "en",
+      "has_scripts": true,
+      "primary": "other",
+      "class_scores": {
+        "doc": 0,
+        "data": 0,
+        "web": 0,
+        "dev": 0,
+        "gen": 0,
+        "sys": 0
+      },
+      "zh_ratio": 0.0014,
+      "quota_proxy": {
+        "exec_code": false,
+        "external_dep": true,
+        "fs_access": true,
+        "net_egress": true,
+        "cred_access": true,
+        "state_persist": false,
+        "agent_comms": false,
+        "system_instruction": false
+      }
+    },
+    {
+      "name": "aihot",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/aihot",
+      "lang": "zh",
+      "has_scripts": false,
+      "primary": "data",
+      "class_scores": {
+        "doc": 1,
+        "data": 4,
+        "web": 0,
+        "dev": 2,
+        "gen": 0,
+        "sys": 0
+      },
+      "zh_ratio": 0.2344,
+      "quota_proxy": {
+        "exec_code": false,
+        "external_dep": true,
+        "fs_access": false,
+        "net_egress": true,
+        "cred_access": true,
+        "state_persist": false,
+        "agent_comms": false,
+        "system_instruction": false
+      }
+    },
+    {
+      "name": "airbnb",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/airbnb",
+      "lang": "en",
+      "has_scripts": false,
+      "primary": "web",
+      "class_scores": {
+        "doc": 0,
+        "data": 0,
+        "web": 2,
+        "dev": 1,
+        "gen": 0,
+        "sys": 0
+      },
+      "zh_ratio": 0.0073,
+      "quota_proxy": {
+        "exec_code": false,
+        "external_dep": false,
+        "fs_access": false,
+        "net_egress": false,
+        "cred_access": false,
+        "state_persist": false,
+        "agent_comms": false,
+        "system_instruction": false
+      }
+    },
+    {
+      "name": "anti-distill",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/anti-distill",
+      "lang": "zh",
+      "has_scripts": false,
+      "primary": "other",
+      "class_scores": {
+        "doc": 0,
+        "data": 0,
+        "web": 0,
+        "dev": 0,
+        "gen": 0,
+        "sys": 0
+      },
+      "zh_ratio": 0.2267,
+      "quota_proxy": {
+        "exec_code": false,
+        "external_dep": false,
+        "fs_access": false,
+        "net_egress": false,
+        "cred_access": false,
+        "state_persist": false,
+        "agent_comms": false,
+        "system_instruction": false
+      }
+    },
+    {
+      "name": "apple-notes",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/apple-notes",
+      "lang": "en",
+      "has_scripts": false,
+      "primary": "web",
+      "class_scores": {
+        "doc": 0,
+        "data": 0,
+        "web": 2,
+        "dev": 0,
+        "gen": 0,
+        "sys": 0
+      },
+      "zh_ratio": 0.0063,
+      "quota_proxy": {
+        "exec_code": false,
+        "external_dep": true,
+        "fs_access": false,
+        "net_egress": false,
+        "cred_access": false,
+        "state_persist": false,
+        "agent_comms": false,
+        "system_instruction": false
+      }
+    },
+    {
+      "name": "api-gateway",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/api-gateway",
+      "lang": "en",
+      "has_scripts": false,
+      "primary": "dev",
+      "class_scores": {
+        "doc": 0,
+        "data": 0,
+        "web": 0,
+        "dev": 2,
+        "gen": 0,
+        "sys": 0
+      },
+      "zh_ratio": 0.0006,
+      "quota_proxy": {
+        "exec_code": false,
+        "external_dep": true,
+        "fs_access": false,
+        "net_egress": true,
+        "cred_access": true,
+        "state_persist": true,
+        "agent_comms": true,
+        "system_instruction": false
+      }
+    },
+    {
+      "name": "ai-shifu-course-creator",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/ai-shifu-course-creator",
+      "lang": "en",
+      "has_scripts": true,
+      "primary": "data",
+      "class_scores": {
+        "doc": 2,
+        "data": 3,
+        "web": 0,
+        "dev": 3,
+        "gen": 1,
+        "sys": 0
+      },
+      "zh_ratio": 0.0046,
+      "quota_proxy": {
+        "exec_code": false,
+        "external_dep": true,
+        "fs_access": true,
+        "net_egress": true,
+        "cred_access": true,
+        "state_persist": true,
+        "agent_comms": false,
+        "system_instruction": true
+      }
+    },
+    {
+      "name": "caveman",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/caveman",
+      "lang": "en",
+      "has_scripts": false,
+      "primary": "other",
+      "class_scores": {
+        "doc": 0,
+        "data": 0,
+        "web": 0,
+        "dev": 0,
+        "gen": 0,
+        "sys": 0
+      },
+      "zh_ratio": 0.0061,
+      "quota_proxy": {
+        "exec_code": false,
+        "external_dep": false,
+        "fs_access": false,
+        "net_egress": false,
+        "cred_access": true,
+        "state_persist": true,
+        "agent_comms": false,
+        "system_instruction": true
+      }
+    },
+    {
+      "name": "content-repurposer",
+      "path": "/Users/family/.codebuddy/skills-marketplace/skills/content-repurposer",
+      "lang": "en",
+      "has_scripts": true,
+      "primary": "gen",
+      "class_scores": {
+        "doc": 0,
+        "data": 0,
+        "web": 0,
+        "dev": 0,
+        "gen": 6,
+        "sys": 0
+      },
+      "zh_ratio": 0.0006,
+      "quota_proxy": {
+        "exec_code": false,
+        "external_dep": false,
+        "fs_access": false,
+        "net_egress": true,
+        "cred_access": false,
+        "state_persist": false,
+        "agent_comms": false,
+        "system_instruction": true
+      }
+    }
+  ],
+  "note": "分层属性为**抽样代理**，不是真值；真值由人工按 annotation_guide.md 独立标注。"
+}

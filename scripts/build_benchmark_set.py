@@ -44,6 +44,39 @@ _CLASSES = list(_CLASS_PATTERNS)
 _COMPILED = {k: re.compile(v, re.IGNORECASE) for k, v in _CLASS_PATTERNS.items()}
 _CJK = re.compile(r"[\u4e00-\u9fff]")
 
+# ── 配额代理信号（#1-g：每标签阳性 ≥3 且阴性 ≥3）──
+# 为什么必须有这一段：第三轮 10 个样本里 4 个标签**双方恒同值**（exec_code / tool_calls 全 yes、
+# agent_comms / system_instruction 全 no）→ kappa 恒为 1.0 却是**假一致**，不含任何判别信息。
+# 根因就是「每标签阴阳配额」只写在任务描述里、从未进脚本（依赖自觉遵守 = 实测连续多轮未遵守）。
+# 因此本段只做一件事：**机器校验 + 门禁阻断**。
+# ⚠ 与 _CLASS_PATTERNS 一样是**抽样代理**，不产出真值；真值仍由人工按 annotation_guide.md 标注。
+_QUOTA_TAGS: list[str] = [
+    "exec_code", "external_dep", "fs_access", "net_egress",
+    "cred_access", "state_persist", "agent_comms", "system_instruction",
+]
+_QUOTA_PROXY: dict[str, list[str]] = {
+    "exec_code": [r"subprocess", r"os\.system", r"os\.popen", r"\bPopen\b", r"\bexec\(", r"\beval\(",
+                  r"importlib", r"__import__", r"pickle\.loads", r"execSync", r"child_process",
+                  r"spawnSync", r"Runtime\.getRuntime"],
+    "external_dep": [r"requirements\.txt", r"package\.json", r"pyproject\.toml", r"Pipfile",
+                     r"Cargo\.toml", r"Gemfile", r"pip install", r"npm install", r"\bnpm i\b",
+                     r"yarn add", r"go mod", r"MCP server", r"mcpServers"],
+    "fs_access": [r"\bopen\(", r"read_text\(", r"write_text\(", r"os\.remove", r"\bshutil\b",
+                  r"fs\.readFile", r"fs\.writeFile", r"Path\(", r"unlink\("],
+    "net_egress": [r"requests\.", r"\bhttpx\b", r"\burllib\b", r"\baiohttp\b", r"\bfetch\(",
+                   r"\baxios\b", r"\bcurl\b", r"\bwget\b", r"http\.client", r"URLSession"],
+    "cred_access": [r"os\.environ", r"getenv", r"process\.env", r"~/\.ssh", r"~/\.aws", r"\.env\b",
+                    r"api_key", r"apikey", r"credential", r"\bsecret\b", r"password", r"\btoken\b",
+                    r"AK/SK", r"keychain"],
+    "state_persist": [r"json\.dump", r"json\.write", r"write_text\(", r"\bsqlite\b", r"\bshelve\b",
+                      r"pickle\.dump", r"localStorage", r"state_file", r"\.save\(", r"persist"],
+    "agent_comms": [r"send_message", r"spawn\w*\s+agent", r"subagent", r"sub_agent", r"mailbox",
+                    r"\bteam\b", r"create_agent", r"agent_id"],
+    "system_instruction": [r"systemPrompt", r"system prompt", r"system_prompt", r"ignore previous",
+                           r"忽略先前", r"覆盖安全策略", r"override.*instruction", r"修改.*指令"],
+}
+_QUOTA_COMPILED = {t: [re.compile(s, re.IGNORECASE) for s in v] for t, v in _QUOTA_PROXY.items()}
+
 
 def _skill_text(skill_dir: Path) -> str:
     parts: list[str] = []
@@ -98,6 +131,59 @@ def profile(skill_dir: Path) -> dict:
         "class_scores": scores,
         "zh_ratio": round(cjk / total, 4),
     }
+
+
+def predict_tags(skill_dir: Path) -> dict[str, bool]:
+    """按**代理信号**预测 8 个 A 级标签的阴阳——只用于抽样配额，不是真值。"""
+    text = _skill_text(skill_dir)
+    return {t: any(c.search(text) for c in _QUOTA_COMPILED[t]) for t in _QUOTA_TAGS}
+
+
+def quota_report(items: list[dict], min_pos: int = 3, min_neg: int = 3) -> dict:
+    """逐标签阴阳计数 + 达成判定。items 需含 `quota_proxy`（由 predict_tags 产出）。"""
+    per: dict[str, dict] = {}
+    for t in _QUOTA_TAGS:
+        pos = sum(1 for it in items if it["quota_proxy"][t])
+        neg = len(items) - pos
+        per[t] = {"pos": pos, "neg": neg,
+                  "ok": pos >= min_pos and neg >= min_neg,
+                  # 恒值 = 假一致风险：任一侧为 0 时 kappa 恒为 1.0，不含判别信息
+                  "constant": pos == 0 or neg == 0}
+    return {"n": len(items), "min_pos": min_pos, "min_neg": min_neg,
+            "per_tag": per, "ok": all(v["ok"] for v in per.values()),
+            "constant_tags": [t for t, v in per.items() if v["constant"]]}
+
+
+def select_by_quota(cands: list[dict], n: int, min_pos: int, min_neg: int) -> list[dict]:
+    """确定性配额优先抽样：先按标签补齐阴阳下限，再按名称补足总数。
+
+    为什么不能沿用域贪心：域分布只保证「异质」，不保证「每个标签都有阴阳两侧」。
+    第三轮的教训就是样本在 4 个标签上恒同值 → kappa 假一致。
+    """
+    picked: list[dict] = []
+    remain = list(cands)
+    counts = {t: {"pos": 0, "neg": 0} for t in _QUOTA_TAGS}
+
+    def absorb(item: dict) -> None:
+        picked.append(item)
+        remain.remove(item)
+        for t in _QUOTA_TAGS:
+            counts[t]["pos" if item["quota_proxy"][t] else "neg"] += 1
+
+    # 阶段 A：逐个标签补齐稀缺侧（候选按名称排序 → 确定性，无人工挑选）
+    for t in _QUOTA_TAGS:
+        for side in ("pos", "neg"):
+            while counts[t][side] < (min_pos if side == "pos" else min_neg) and remain:
+                want = (side == "pos")
+                pool = [c for c in remain if c["quota_proxy"][t] is want]
+                if not pool:
+                    break
+                absorb(pool[0])
+
+    # 阶段 B：补足总数（按名称排序取前位，保持确定性）
+    while len(picked) < n and remain:
+        absorb(remain[0])
+    return picked
 
 
 def select(cands: list[dict], n: int, min_scripts: int, min_en: int, min_zh: int,
@@ -162,6 +248,28 @@ def select(cands: list[dict], n: int, min_scripts: int, min_en: int, min_zh: int
     return picked, check
 
 
+def _load_excluded(paths: list[str]) -> set[str]:
+    """从既有样本文件里读出已入选技能名（避免重复入选 → 留出集失去无偏性）。"""
+    names: set[str] = set()
+    for p in paths:
+        try:
+            data = json.loads(Path(p).read_text(encoding="utf-8"))
+        except Exception as exc:
+            print(f"❌ 排除名单读取失败 {p}: {exc}", file=sys.stderr)
+            raise SystemExit(1)
+        if isinstance(data, dict):
+            for key in ("skills", "selected"):
+                for it in data.get(key, []) or []:
+                    if isinstance(it, dict) and it.get("name"):
+                        names.add(it["name"])
+                    elif isinstance(it, str):
+                        names.add(it)
+            for it in (data.get("round2_added", {}) or {}).get("skills", []) or []:
+                if isinstance(it, dict) and it.get("name"):
+                    names.add(it["name"])
+    return names
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="基准集分层抽样（攻击面标签改造 #1）")
     ap.add_argument("--source", required=True, help="技能源目录（其下每个子目录为一个技能）")
@@ -170,6 +278,12 @@ def main() -> int:
     ap.add_argument("--min-en", type=int, default=5, help="纯英文技能最少数量")
     ap.add_argument("--min-zh", type=int, default=5, help="纯中文技能最少数量")
     ap.add_argument("--min-per-class", type=int, default=2, help="每类能力面最少数量")
+    ap.add_argument("--min-pos", type=int, default=3, help="每标签阳性下限（配额）")
+    ap.add_argument("--min-neg", type=int, default=3, help="每标签阴性下限（配额）")
+    ap.add_argument("--quota-pick", action="store_true", help="按标签阴阳配额抽样（替代域分层）")
+    ap.add_argument("--quota-check", default=None, help="只校验既有样本文件的配额（不抽样）")
+    ap.add_argument("--exclude", nargs="*", default=[], help="既有样本文件，其内技能不再入选")
+    ap.add_argument("--strict", action="store_true", help="配额不达标时退出码 2（供门禁阻断）")
     ap.add_argument("--output", default=None, help="输出 JSON 路径（缺省 stdout）")
     args = ap.parse_args()
 
@@ -178,13 +292,49 @@ def main() -> int:
         print(f"❌ 技能源目录不存在: {src}", file=sys.stderr)
         return 1
 
-    cands = [profile(d) for d in sorted(src.iterdir()) if (d / "SKILL.md").is_file()]
-    if len(cands) < args.n:
-        print(f"❌ 候选技能不足：{len(cands)} < {args.n}", file=sys.stderr)
-        return 1
+    # ── 模式一：只校验既有样本的配额（门禁用）──
+    if args.quota_check:
+        data = json.loads(Path(args.quota_check).read_text(encoding="utf-8"))
+        items = []
+        for key in ("skills", "selected"):
+            for it in data.get(key, []) or []:
+                if isinstance(it, dict):
+                    p = it.get("path") or str(src / it["name"])
+                    items.append({"name": it.get("name", Path(p).name),
+                                  "quota_proxy": predict_tags(Path(p))})
+        rep = quota_report(items, args.min_pos, args.min_neg)
+        print(json.dumps(rep, ensure_ascii=False, indent=2))
+        if rep["constant_tags"]:
+            print(f"⚠ 恒值标签（kappa 假一致风险）: {rep['constant_tags']}")
+        if not rep["ok"]:
+            print(f"❌ 配额未达标：需每标签阳性 ≥{args.min_pos} 且阴性 ≥{args.min_neg}")
+            return 2
+        print("✅ 配额达标")
+        return 0
 
-    picked, check = select(cands, args.n, args.min_scripts, args.min_en, args.min_zh,
-                           args.min_per_class)
+    excluded = _load_excluded(args.exclude)
+    cands = [profile(d) for d in sorted(src.iterdir())
+             if (d / "SKILL.md").is_file() and d.name not in excluded]
+    if len(cands) < args.n:
+        print(f"❌ 候选技能不足：{len(cands)} < {args.n}（已排除 {len(excluded)} 个）", file=sys.stderr)
+        return 1
+    for c in cands:
+        c["quota_proxy"] = predict_tags(Path(c["path"]))
+
+    if args.quota_pick:
+        picked = select_by_quota(cands, args.n, args.min_pos, args.min_neg)
+        qrep = quota_report(picked, args.min_pos, args.min_neg)
+        check = {"n": len(picked),
+                 "has_scripts": sum(1 for p in picked if p["has_scripts"]),
+                 "en": sum(1 for p in picked if p["lang"] == "en"),
+                 "zh": sum(1 for p in picked if p["lang"] == "zh"),
+                 "per_class": {c: sum(1 for p in picked if p["primary"] == c)
+                               for c in _CLASSES},
+                 "quota": qrep}
+        check["ok"] = check["n"] == args.n and qrep["ok"]
+    else:
+        picked, check = select(cands, args.n, args.min_scripts, args.min_en, args.min_zh,
+                               args.min_per_class)
     result = {
         "generated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "source": str(src),
@@ -201,6 +351,15 @@ def main() -> int:
         print(f"✅ 基准集抽样完成：{check['n']} 个（约束达成={check['ok']}）→ {args.output}")
         print(f"   scripts {check['has_scripts']} / 英文 {check['en']} / 中文 {check['zh']}"
               f" / 每类 {check['per_class']}")
+        if "quota" in check:
+            bad = [t for t, v in check["quota"]["per_tag"].items() if not v["ok"]]
+            print(f"   配额：达成={check['quota']['ok']}"
+                  + (f"，未达标标签={bad}" if bad else "")
+                  + (f"，恒值标签={check['quota']['constant_tags']}"
+                     if check["quota"]["constant_tags"] else ""))
+            if not check["quota"]["ok"] and args.strict:
+                print("❌ 配额未达标且指定 --strict → 阻断")
+                return 2
     else:
         print(payload)
     return 0

@@ -201,3 +201,84 @@ kappa 数学上归零（kappa 悖论）。这恰恰坐实了**宽窄两套口径
 
 > 为什么 kappa 不达标要改规程而不是改标注：改标注等于把分歧"抹平"，真值的一致性是假的，
 > 后续召回率会被高估。规程不够清晰才是根因（这是 MUC/ACE 标注工程的通行做法）。
+
+---
+
+## 判定口径 v5（2026-10-12 · E1–E2 打标约束 · 强制）
+
+> 依据：`benchmark/tag_judgeability.md`（逐标签可判定性分级表）。
+> 这是**最后一次重标**：重标后无论是否达标都不再修订本规程（收敛约定已生效）。
+
+### 一、打标集缩减为 8 个标签
+
+| 处置 | 标签 |
+|---|---|
+| **继续打标**（A 级，E1/E2 可判） | `exec_code` `external_dep` `fs_access` `net_egress` `cred_access` `state_persist` `agent_comms` `system_instruction` |
+| **不再打标**（B 级，转 `evidence_level`） | `user_content` `prompt_intent` |
+| **剔除**（C 级，恒真且与 `exec_code` 重叠） | `tool_calls` |
+
+`user_content` / `prompt_intent` 若观察到相关信号，写在 `note` 里并标注等级，**不参与 kappa、不参与召回率**。
+
+### 二、唯一判据：只认 E1 / E2
+
+- **E1 代码事实**：技能本体（`SKILL.md` + `scripts/` 下的 `.py` `.sh` `.js` `.json` `.md`）中**存在**该能力的代码/命令事实，可给出 `文件:行号`。
+- **E2 声明事实**：存在依赖/配置声明（`requirements.txt` / `package.json` / `pyproject.toml` / frontmatter 里的 MCP server 声明等），可给出 `文件:行号`。
+- **E3 / E4 不触发标签**：`SKILL.md` 里的**指令、说明、示例、给用户的操作步骤**属 E3；强隐含属 E4。二者**一律判 no**，只在 `note` 里记录等级与位置。
+
+> 这条约束的实质：把「这个技能有没有这个能力」换成「本体的文件里有没有这个事实」。
+> 前者要推断，后者只需查——这正是第三轮 κ=0.60 且 4 个标签假一致的根因所在。
+
+#### E1 / E2 / E3 的机械判据（不留推断空间）
+
+无 `scripts/` 的技能占多数，若把 `SKILL.md` 一律当成散文，这类技能会**全标签判 no**——
+那正是第三轮 `agent_comms` / `system_instruction` 双方全 no 的**假一致**成因。故按下表机械切分：
+
+| 等级 | 形态 | 判定方法（机械） |
+|---|---|---|
+| **E1** | ① `scripts/` 下的代码文件；② `SKILL.md` 中 **fenced 代码块**（``` 包裹）或**行内 `` ` `` 代码**内出现的**实际命令 / 代码语句** | 该行是否位于 ``` fence 之内，或被反引号包裹 |
+| **E2** | frontmatter 声名字段（`primaryEnv` / `permissions` / `requires`）与依赖清单文件；安装命令（`pip install` / `npm install`）即使写在代码块里仍按 E2 计 | 是否属于声明/清单，而非执行动作 |
+| **E3** | 散文叙述（非代码块）中的能力描述、说明、示例讲解、给用户的步骤文字 | 不在代码块内即 E3 |
+
+**推论（照抄即可）**：
+- `SKILL.md` 代码块里出现 `curl -s https://…` → `net_egress` = **yes（E1）**；散文里写"调用云端接口" → **no（E3）**。
+- `SKILL.md` 代码块里出现 `os.environ.get("X_KEY")` → `cred_access` = **yes（E1）**；散文里写"支持 AK/SK 鉴权" → **no（E3）**，除非 `scripts/` 或代码块另有实际读取语句。
+- `SKILL.md` 代码块里出现 `pip install xxx` → `external_dep` = **yes（E2）**。
+- 散文中的"运行 `bash scripts/x.sh`" → `exec_code` = **no（E3）**，除非该脚本本体确在 `scripts/` 中且其内含执行类调用（此时按脚本内容判 E1）。
+
+
+### 三、逐标签 E1/E2 判据（照此判，不需要推断）
+
+| 标签 | 判 yes 的事实（E1/E2） | 明确判 no 的情形（易错） |
+|---|---|---|
+| `exec_code` | `scripts/` 内出现执行类调用：`subprocess` / `os.system` / `os.popen` / `Popen` / `exec(` / `eval(` / `importlib` / `execSync` / `child_process` | SKILL.md 写"运行 `bash xxx.sh`"但 `scripts/` 内无执行代码 → **E3，判 no** |
+| `external_dep` | 存在 `requirements.txt` / `package.json` / `pyproject.toml` / `Pipfile` / `Cargo.toml` / `Gemfile`，或脚本内 `pip install` / `npm install` / MCP server 声明 | 仅正文提"依赖某某云服务"但无声明文件、无安装命令 → E3，判 no |
+| `fs_access` | 代码内出现文件读写 API：`open(` / `read_text(` / `write_text(` / `os.remove` / `shutil` / `fs.readFile` / `fs.writeFile` | 只出现工具名（`read_file` / `write_to_file`）而无实际文件 API → 判 no |
+| `net_egress` | 出现 HTTP 客户端调用或命令：`requests.` / `httpx` / `urllib` / `aiohttp` / `fetch(` / `axios` / `curl` / `wget` / `http.client` | 仅"云端 / 在线服务"描述 → 判 no（那归 `external_dep`） |
+| `cred_access` | 出现凭证读取事实：`os.environ` / `getenv` / `process.env` / `~/.ssh` / `~/.aws` / `.env` / `api_key` / `credential` / `secret` / `password` / `token` / `AK/SK` / `keychain` | 正文出现"令牌"但代码无读取动作 → E3，判 no |
+| `state_persist` | 出现**写入非临时路径**的事实：`json.dump` / `write_text(` / `sqlite` / `pickle.dump` / `localStorage` / 写状态文件 | 只出现 `.md` / `.json` 文件**名**、或只读不写 → 判 no（该恒真信号已剔除） |
+| `agent_comms` | 出现 agent 间通信事实：`send_message` / `spawn … agent` / `subagent` / `mailbox` / `agent_id` 通信协议 | 仅"多 agent / 编排"等描述性文字 → E3，判 no |
+| `system_instruction` | 出现对系统提示/安全策略的**写入或覆盖**：`systemPrompt` 赋值 / `ignore previous` / `忽略先前` / `覆盖安全策略` | **产出提示词文本给人用**（prompt 工程类技能）→ 判 no |
+
+#### 边界裁定 22–26（2026-10-12 补，与第三轮裁定 1–21 并列）
+
+| # | 情形 | 裁定 |
+|---|---|---|
+| 22 | frontmatter 声明 `requires.bins`（如 `uvx` / `python3`） | `external_dep` = **yes（E2）**——声明了必须外部安装的组件 |
+| 23 | 脚本内确有第三方 `import`（如 `from agentmail import AgentMail`）或 `pip install` / `npm install` | `external_dep` = **yes（E2）**；**仅错误提示文字**且无实际 `import` → no |
+| 24 | 环境变量读取，`变量名含 KEY / TOKEN / SECRET / CRED / PASSWORD / AK / SK` | `cred_access` = **yes**；变量名是配置类（`*_DIR` / `*_PATH` / `*_BASE` / `*_URL`）→ **no**（那不是凭证） |
+| 25 | 词形命中但**同名异义**：`mailbox` 指钉钉/邮件邮箱、`team` 指团队成员、`token` 指分页游标 | `agent_comms` = **no**——词形命中须确认确指 **agent 之间**的通信 |
+| 26 | 存在 system prompt 的**赋值 / 写入 / 覆盖**语句（含作为 LLM 调用的 `system` 参数传入） | `system_instruction` = **yes**；仅"回复模板"或"不覆盖其他技能指令"的声明 → no |
+
+### 四、证据要求（硬）
+
+1. 每个 `yes` **必须**带 `文件:行号` + 等级（E1/E2）；无位置的判定作废重标。
+2. 每个 `no` 至少在 `note` 里写一句「按哪条判据判 no」。
+3. **不再使用 `unsure`**——判据是事实判定，查不到即是没有该事实，判 no。
+4. 判定对象仍是**技能本体**；`node_modules` / `.venv` / `__pycache__` / `.trace` 内的代码不计入。
+
+### 五、本轮样本
+
+`benchmark/heldout_round4.json`（14 个技能 × 8 标签 = **112 判定对**），由
+`build_benchmark_set.py --quota-pick --strict` 确定性抽出，**每标签阳性 ≥3 且阴性 ≥3**
+（配额已由脚本机器校验，不再依赖自觉遵守）。本样本**未参与任何口径讨论**。
+

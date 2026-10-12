@@ -1,0 +1,172 @@
+{
+  "set": "heldout_round4",
+  "annotator": "A",
+  "round": 4,
+  "caliber": "v5（E1–E2 打标约束）",
+  "tags": [
+    "exec_code",
+    "external_dep",
+    "fs_access",
+    "net_egress",
+    "cred_access",
+    "state_persist",
+    "agent_comms",
+    "system_instruction"
+  ],
+  "labels": {
+    "cloudq": {
+      "exec_code": "yes",
+      "external_dep": "no",
+      "fs_access": "yes",
+      "net_egress": "yes",
+      "cred_access": "yes",
+      "state_persist": "yes",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "v5/E1: scripts/check_env.py:246 subprocess.run()；check_env.py:115 CONFIG_FILE.write_text()；check_env.py:238 requests.get()；check_env.py:456 os.environ.get(\"TENCENTCLOUD_SECRET_ID\")（裁定24 含 SECRET）→ cred yes。external_dep no：全文无 requirements.txt/安装命令（裁定22/23 均未命中）。agent_comms/system_instruction 无命中。"
+    },
+    "content-ops": {
+      "exec_code": "yes",
+      "external_dep": "yes",
+      "fs_access": "yes",
+      "net_egress": "yes",
+      "cred_access": "no",
+      "state_persist": "yes",
+      "agent_comms": "no",
+      "system_instruction": "yes",
+      "note": "v5/E1: content-quality-gate.py:44 subprocess.run()；content-transform.py:593 import anthropic + :595 pip install（裁定23）→ ext yes；content-quality-gate.py:65 open(QUALITY_SCORES_FILE)；editorial-brain.py:59 urllib.request.urlopen()；content-quality-gate.py:131 json.dump(...,f) → state yes；content-transform.py:384 kwargs[\"system\"]=system（裁定26）→ sysinstr yes。cred_access no：仅 os.environ.get(\"CONTENT_OPS_DATA_DIR\")，配置类变量名（裁定24）→ no。agent_comms no：editorial-brain.py:162 是 LLM prompt 文案，非 agent 间通信。"
+    },
+    "dingtalk-unified": {
+      "exec_code": "yes",
+      "external_dep": "yes",
+      "fs_access": "yes",
+      "net_egress": "yes",
+      "cred_access": "no",
+      "state_persist": "no",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "v5/E1: attendance_my_record.py:30 subprocess.run()；SKILL.md:27 npm install -g dingtalk-workspace-cli（E2）→ ext yes；bulk_add_fields.py:46-52 Path().resolve() 且脚本读写字段文件 → fs yes；upload_attachment.py:29 urllib.request → net yes。cred_access no：脚本内仅 os.environ.get('OPENCLAW_WORKSPACE'/'DINGTALK_DWS_AGENTCODE')，配置类（裁定24）；upload_attachment.py:136 fileToken 是上传响应里的文件标识，非凭证读取。state_persist no：json.dumps 仅 print 到 stdout，无落盘写入。agent_comms no：SKILL.md:322 `dws mail mailbox list` 指钉钉**邮箱**，同名异义（裁定25）。"
+    },
+    "a-stock-data": {
+      "exec_code": "no",
+      "external_dep": "yes",
+      "fs_access": "yes",
+      "net_egress": "yes",
+      "cred_access": "yes",
+      "state_persist": "yes",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "v5/E1（无 scripts/，按 SKILL.md 代码块判）: :155 pip install mootdx requests pandas stockstats（E2）→ ext yes；:478-484 Path(target_dir)/fname + mkdir → fs yes；:222 requests.Session() → net yes；:557 os.environ.get(\"IWENCAI_API_KEY\")（裁定24 含 KEY）→ cred yes；:781 with open(path,\"w\") 写缓存 → state yes。exec_code no：代码块内无 subprocess/exec 类调用（正文『运行』属 E3）。agent_comms/system_instruction 无命中。"
+    },
+    "admapix": {
+      "exec_code": "no",
+      "external_dep": "no",
+      "fs_access": "no",
+      "net_egress": "yes",
+      "cred_access": "yes",
+      "state_persist": "no",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "v5/E1: SKILL.md:82 curl -s https://api.admapix.com/... （代码块）→ net yes；:13 frontmatter primaryEnv: ADMAPIX_API_KEY（E2 声明，裁定24 含 KEY）→ cred yes。fs_access no：无文件读写代码；state_persist no：:469 是错误码说明表，非写入；external_dep no：无依赖声明与安装命令；exec/agent/sys 无命中。"
+    },
+    "agent-mail": {
+      "exec_code": "no",
+      "external_dep": "yes",
+      "fs_access": "yes",
+      "net_egress": "yes",
+      "cred_access": "yes",
+      "state_persist": "yes",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "v5/E1: scripts/check_inbox.py:7 from agentmail import AgentMail + SKILL.md:38 pip install agentmail（裁定23）→ ext yes；check_inbox.py:19 with open(CONFIG_PATH) → fs yes；SKILL.md:139 curl -s https://api.agentmail.to/... （代码块）→ net yes；check_inbox.py:22 config.get('apiKey') → cred yes；SKILL.md:53 cat > ~/.agentmail/config.json << EOF（代码块，写配置落盘）→ state yes。exec_code no：scripts 内无 subprocess/os.system（SDK 调用不算执行类）。agent_comms/system_instruction 无命中。"
+    },
+    "aihot": {
+      "exec_code": "no",
+      "external_dep": "no",
+      "fs_access": "no",
+      "net_egress": "yes",
+      "cred_access": "no",
+      "state_persist": "no",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "v5/E1: SKILL.md:20-25 代码块内 curl 调 /api/public/* → net yes。cred_access no：:16『无需 token』是否定表述；:176/:188 的 token 指**分页游标** cursor（裁定25 同名异义）→ no。external_dep no：无依赖声明；exec/fs/state/agent/sys 无命中。"
+    },
+    "airbnb": {
+      "exec_code": "no",
+      "external_dep": "yes",
+      "fs_access": "no",
+      "net_egress": "no",
+      "cred_access": "no",
+      "state_persist": "no",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "v5/E2: SKILL.md frontmatter requires.bins: uvx（裁定22）→ ext yes。其余 no：SKILL.md 代码块内无 curl/subprocess/open/env 读取（UVX 命令行不含执行类调用字面量）。"
+    },
+    "anti-distill": {
+      "exec_code": "no",
+      "external_dep": "no",
+      "fs_access": "no",
+      "net_egress": "no",
+      "cred_access": "no",
+      "state_persist": "no",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "v5: SKILL.md 全文无代码/命令块命中 8 个标签的任一条 E1/E2 判据（纯规则说明型技能）→ 全 no。"
+    },
+    "apple-notes": {
+      "exec_code": "no",
+      "external_dep": "yes",
+      "fs_access": "no",
+      "net_egress": "no",
+      "cred_access": "no",
+      "state_persist": "no",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "v5/E2: SKILL.md:15 行内代码 `pip install .`（裁定23）→ ext yes。其余 no：无 curl/open/env 凭证/写入/执行类命中。"
+    },
+    "api-gateway": {
+      "exec_code": "no",
+      "external_dep": "yes",
+      "fs_access": "no",
+      "net_egress": "yes",
+      "cred_access": "yes",
+      "state_persist": "no",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "v5/E1: SKILL.md:65 npm install -g @maton-ai/cli + :410 MCP server（E2）→ ext yes；:36-38 urllib.request.Request/urlopen（代码块）→ net yes；:37 os.environ[\"MATON_API_KEY\"]（裁定24）→ cred yes。state_persist no：json.dumps 仅 print 到 stdout；fs_access no：无文件读写；agent_comms no：:283『team membership』指 Dropbox 团队成员（裁定25 同名异义）；exec/sys 无命中。"
+    },
+    "ai-shifu-course-creator": {
+      "exec_code": "no",
+      "external_dep": "yes",
+      "fs_access": "yes",
+      "net_egress": "yes",
+      "cred_access": "yes",
+      "state_persist": "yes",
+      "agent_comms": "no",
+      "system_instruction": "yes",
+      "note": "v5/E1: scripts/requirements.txt 存在 + image_utils.py:81 pip install -r（E2）→ ext yes；image_utils.py:85 Image.open(src_path) + :69 Path(src_path) → fs yes；shifu-cli.py:97 requests.post() → net yes；shifu-cli.py:18 ENV_FILE=.../.env + :30 save_env(token) → cred yes；image_utils.py:145 im.save(...) → state yes；shifu-cli.py:512/531 \"system_prompt\": course_prompt 写入课程元数据（裁定26）→ sysinstr yes。exec_code no：scripts 内无 subprocess/exec 类调用。agent_comms 无命中。"
+    },
+    "caveman": {
+      "exec_code": "no",
+      "external_dep": "no",
+      "fs_access": "no",
+      "net_egress": "no",
+      "cred_access": "no",
+      "state_persist": "no",
+      "agent_comms": "no",
+      "system_instruction": "no",
+      "note": "v5: SKILL.md 为纯风格指令；:18『## Persistence』指**风格持续生效**，非数据落盘（判据要求写入非临时路径的事实）→ state no；:37『Token expiry』是散文示例（E3）→ cred no；:26 明示『不覆盖其他技能指令』（裁定26 反向）→ sys no；其余无命中。"
+    },
+    "content-repurposer": {
+      "exec_code": "no",
+      "external_dep": "no",
+      "fs_access": "yes",
+      "net_egress": "yes",
+      "cred_access": "no",
+      "state_persist": "yes",
+      "agent_comms": "no",
+      "system_instruction": "yes",
+      "note": "v5/E1: scripts/repurpose.sh:65 curl -sL \"$SOURCE_INPUT\" → net yes；:69 cat \"$SOURCE_INPUT\" + :71 [ -f ] 读文件 → fs yes；setup.sh:69 echo '{\"repurposings\":[]}' > \"$REPURPOSE_DIR/repurpose-log.json\" 写日志落盘 → state yes；instagram-caption.sh:27 LLM_SYSTEM_PROMPT=$(jq -r '.system_prompt_prefix' ...) 赋值 system prompt（裁定26）→ sysinstr yes。exec_code no：脚本内无 subprocess/os.system（脚本本身被执行不属判据所列执行类调用，记 E3 待议）；external_dep no：无依赖声明；cred_access no：无凭证读取；agent_comms 无命中。"
+    }
+  }
+}
