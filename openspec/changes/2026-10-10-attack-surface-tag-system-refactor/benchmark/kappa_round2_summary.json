@@ -1,0 +1,246 @@
+{
+  "heldout": {
+    "skills": 5,
+    "pairs": 55,
+    "kappa": 0.5565,
+    "kappa_per_tag": {
+      "exec_code": 1.0,
+      "external_dep": 1.0,
+      "fs_access": 0.0,
+      "net_egress": 1.0,
+      "cred_access": -0.25,
+      "state_persist": -0.1538,
+      "user_content": 0.2857,
+      "agent_comms": 1.0,
+      "prompt_intent": 0.0,
+      "tool_calls": 0.0,
+      "system_instruction": 1.0
+    },
+    "disagreements": [
+      {
+        "skill": "12306",
+        "tag": "fs_access",
+        "a": "no",
+        "b": "yes"
+      },
+      {
+        "skill": "12306",
+        "tag": "state_persist",
+        "a": "no",
+        "b": "yes"
+      },
+      {
+        "skill": "academic-tutor",
+        "tag": "prompt_intent",
+        "a": "yes",
+        "b": "no"
+      },
+      {
+        "skill": "agent-browser-core",
+        "tag": "cred_access",
+        "a": "yes",
+        "b": "no"
+      },
+      {
+        "skill": "agent-browser-core",
+        "tag": "state_persist",
+        "a": "yes",
+        "b": "no"
+      },
+      {
+        "skill": "agent-mbti",
+        "tag": "fs_access",
+        "a": "no",
+        "b": "yes"
+      },
+      {
+        "skill": "agent-mbti",
+        "tag": "user_content",
+        "a": "yes",
+        "b": "no"
+      },
+      {
+        "skill": "agent-mbti",
+        "tag": "prompt_intent",
+        "a": "yes",
+        "b": "no"
+      },
+      {
+        "skill": "agent-mbti",
+        "tag": "tool_calls",
+        "a": "no",
+        "b": "yes"
+      },
+      {
+        "skill": "baidu-drive",
+        "tag": "cred_access",
+        "a": "no",
+        "b": "yes"
+      },
+      {
+        "skill": "baidu-drive",
+        "tag": "state_persist",
+        "a": "no",
+        "b": "yes"
+      },
+      {
+        "skill": "baidu-drive",
+        "tag": "user_content",
+        "a": "yes",
+        "b": "no"
+      }
+    ],
+    "pass": false
+  },
+  "main": {
+    "skills": 15,
+    "pairs": 165,
+    "kappa": 0.8063,
+    "kappa_per_tag": {
+      "exec_code": 0.5946,
+      "external_dep": 0.7273,
+      "fs_access": 0.7619,
+      "net_egress": 1.0,
+      "cred_access": 1.0,
+      "state_persist": 0.5872,
+      "user_content": 0.6667,
+      "agent_comms": 0.0,
+      "prompt_intent": -0.1538,
+      "tool_calls": 1.0,
+      "system_instruction": 1.0
+    },
+    "disagreements": [
+      {
+        "skill": "kdocs",
+        "tag": "external_dep",
+        "a": "no",
+        "b": "yes"
+      },
+      {
+        "skill": "kdocs",
+        "tag": "fs_access",
+        "a": "no",
+        "b": "yes"
+      },
+      {
+        "skill": "kdocs",
+        "tag": "state_persist",
+        "a": "no",
+        "b": "yes"
+      },
+      {
+        "skill": "tencent-musician-skills",
+        "tag": "external_dep",
+        "a": "no",
+        "b": "yes"
+      },
+      {
+        "skill": "deep-research",
+        "tag": "exec_code",
+        "a": "no",
+        "b": "yes"
+      },
+      {
+        "skill": "deep-research",
+        "tag": "state_persist",
+        "a": "no",
+        "b": "yes"
+      },
+      {
+        "skill": "deep-research",
+        "tag": "agent_comms",
+        "a": "no",
+        "b": "yes"
+      },
+      {
+        "skill": "deep-research",
+        "tag": "prompt_intent",
+        "a": "no",
+        "b": "yes"
+      },
+      {
+        "skill": "react-native-dev",
+        "tag": "exec_code",
+        "a": "no",
+        "b": "yes"
+      },
+      {
+        "skill": "libtv-skill",
+        "tag": "user_content",
+        "a": "yes",
+        "b": "no"
+      },
+      {
+        "skill": "libtv-skill",
+        "tag": "prompt_intent",
+        "a": "yes",
+        "b": "no"
+      },
+      {
+        "skill": "ecommerce-copywriter",
+        "tag": "prompt_intent",
+        "a": "yes",
+        "b": "no"
+      },
+      {
+        "skill": "tencentcloud-cos",
+        "tag": "user_content",
+        "a": "yes",
+        "b": "no"
+      },
+      {
+        "skill": "lingxi-financialsearch-skill",
+        "tag": "state_persist",
+        "a": "no",
+        "b": "yes"
+      },
+      {
+        "skill": "smooth-browser",
+        "tag": "agent_comms",
+        "a": "no",
+        "b": "yes"
+      },
+      {
+        "skill": "smooth-browser",
+        "tag": "prompt_intent",
+        "a": "no",
+        "b": "yes"
+      }
+    ],
+    "pass": true
+  },
+  "supplement": {
+    "skills": 4,
+    "pairs": 44,
+    "kappa": 0.9091,
+    "kappa_per_tag": {
+      "exec_code": 1.0,
+      "external_dep": 1.0,
+      "fs_access": 1.0,
+      "net_egress": 1.0,
+      "cred_access": 1.0,
+      "state_persist": 1.0,
+      "user_content": 1.0,
+      "agent_comms": 1.0,
+      "prompt_intent": 0.0,
+      "tool_calls": 1.0,
+      "system_instruction": 1.0
+    },
+    "disagreements": [
+      {
+        "skill": "agent-team-orchestration",
+        "tag": "prompt_intent",
+        "a": "no",
+        "b": "yes"
+      },
+      {
+        "skill": "capability-evolver",
+        "tag": "prompt_intent",
+        "a": "no",
+        "b": "yes"
+      }
+    ],
+    "pass": true
+  },
+  "note": "留出集(heldout)为无偏验收对象；主样本已受口径讨论污染，仅作过程指标"
+}
