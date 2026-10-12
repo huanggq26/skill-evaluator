@@ -81,6 +81,15 @@ def merge(
         dim_rows = dim_entry.get("rows") or []
         if dim_rows:
             continue  # AI 有真实结论，正常渲染
+        # 主观维度未裁定（skipped）时，候选文本必须带「待 AI 裁定」标记。
+        # 实证缺陷：报告曾渲染「调用其他Tools：无（文档未提及）」——那是**客观候选文本**，
+        # 而主观维度 deps_tools 实为 skipped=True。同一报告里另 10 个未裁定维度渲染为
+        # 「未检查」，此处却渲染成读起来像结论的候选文本 → 呈现口径不一致，被误读为
+        # 「该技能无工具依赖」。故追加标记，并保留「未检查」行（不再抑制）。
+        if dim_entry.get("skipped"):
+            _cand = str(field_entry.get("text") or "").strip() or "无"
+            field_entry["text"] = f"{_cand}（客观候选，待 AI 裁定）"
+            continue
         # 候选非空 → 抑制"无"
         field_text = str(field_entry.get("text") or "").strip()
         if field_text and field_text != "无":

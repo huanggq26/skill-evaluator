@@ -73,3 +73,4 @@
 - `2026-10-12 10:09:47` | `references/stage0_preflight.md` | set(1 处) | ✅ 非空行 376 → 378，体积 29832 → 29868；备份 stage0_preflight-pre-set-20261012-100947.md
 - `2026-10-12 10:12:04` | `/Users/family/.codebuddy/skills/skill-evaluator/.project/TASKLOG.md` | set(1 处) | ✅ 非空行 426 → 481，体积 27132 → 30399；备份 TASKLOG-pre-set-20261012-101204.md
 - `2026-10-12 10:28:41` | `/Users/family/.codebuddy/skills/skill-evaluator/.project/TASKLOG.md` | set(3 处) | ✅ 非空行 481 → 521，体积 30399 → 32346；备份 TASKLOG-pre-set-20261012-102841.md
+- `2026-10-12 10:49:50` | `/Users/family/.codebuddy/skills/skill-evaluator/openspec/changes/2026-10-12-eval-run-and-report-integrity/tasks.md` | set(11 处) | ✅ 非空行 30 → 30，体积 1532 → 1797；备份 tasks-pre-set-20261012-104950.md

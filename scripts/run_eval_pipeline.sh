@@ -96,8 +96,28 @@ SKILL_NAME="$(basename "$TARGET_SKILL")"
 # ── 目录结构：<结果根>/<技能名>/<本次运行标识> ──
 # 旧结构把版本放在外层（因调用方常把 …_v16 当作 --results-root 传入），导致同一技能的
 # 多轮评测散落在不同父目录下，无法按技能归组对比。现改为「技能 → 运行」两级。
-# 未指定 --run-id 时用时间戳，保证每次运行互不覆盖。
-RUN_ID="${RUN_ID:-$(date +%Y%m%d-%H%M%S)}"
+# 未指定 --run-id 时按 **v<N> 递增**（原为时间戳）。
+# 为什么改：时间戳虽保证不覆盖，但编号无规则、无法看出先后与轮次，且同一技能的历史运行
+# 目录无限累积后只能靠 mtime 判断哪个最新（实证：aihot 下累积 4 个无规则目录）。
+# v<N> 递增兼顾「不覆盖」与「可读的先后顺序」。
+if [[ -z "${RUN_ID:-}" ]]; then
+  _SKILL_RUN_ROOT="$RESULTS_ROOT/$SKILL_NAME"
+  _max_n=0
+  if [[ -d "$_SKILL_RUN_ROOT" ]]; then
+    for _d in "$_SKILL_RUN_ROOT"/v*; do
+      [[ -d "$_d" ]] || continue
+      _n="${_d##*/v}"
+      [[ "$_n" =~ ^[0-9]+$ ]] && (( _n > _max_n )) && _max_n=$_n
+    done
+  fi
+  RUN_ID="v$((_max_n + 1))"
+fi
+# 字符集校验：run-id 直接参与路径拼接（WS=$RESULTS_ROOT/$SKILL_NAME/$RUN_ID），
+# 含路径分隔符/空格会逃逸到其它目录或打断后续命令。仅允许安全字符。
+if [[ ! "$RUN_ID" =~ ^[A-Za-z0-9._-]+$ ]]; then
+  echo "❌ --run-id 非法：'$RUN_ID'（仅允许字母、数字、点、下划线、连字符；不得含路径分隔符或空格）" >&2
+  exit 2
+fi
 WS="$RESULTS_ROOT/$SKILL_NAME/$RUN_ID"
 
 # ---- 可选：清空评测工作区（**仅本次评测对象的子目录 $WS**）----
@@ -144,6 +164,22 @@ p.write_text(json.dumps({
 }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 print(f"▶ 本次运行标识：{run_id} → {ws}")
 PYEOF
+
+# ── 历史运行目录提示（不自动删除）──
+# 为何只提示不清理：结果目录是使用者资产，跨平台自动删除风险高；
+# 按项目删除纪律须走废纸篓，由使用者决定。此处只给出数量与清理方式。
+_skill_root="$RESULTS_ROOT/$SKILL_NAME"
+if [[ -d "$_skill_root" ]]; then
+  _hist=()
+  for _d in "$_skill_root"/*; do
+    [[ -d "$_d" ]] && _hist+=("$(basename "$_d")")
+  done
+  if (( ${#_hist[@]} > 1 )); then
+    echo "ℹ 该技能下已有 ${#_hist[@]} 个历史运行目录：${_hist[*]}"
+    echo "   最新一次已写入 LATEST.json（$_skill_root/LATEST.json）"
+    echo "   清理旧目录请手动走废纸篓（本项目禁止 rm）：trash <目录路径>"
+  fi
+fi
 # 阶段 0 中间产物统一归入 results/ 子目录（类比 spec/results），顶层仅留最终报告
 QUALITY_RESULTS_DIR="$QUALITY_DIR/results"
 QUALITY_SCORE_OUT="$QUALITY_RESULTS_DIR/quality_score.json"
@@ -563,7 +599,12 @@ run_stage4() {
 
   echo ""
   echo "=================================================="
-  echo " ✅ 全部阶段完成（进度 5/5）——交付物清单"
+  # 文案自洽（勿宣告完成）：此处阶段均**已执行**，但阶段 0 DoD 尚未校验。
+  # 实证缺陷：此前这里直接打印「✅ 全部阶段完成（进度 5/5）」，而下方 R13 DoD 门禁随即
+  # exit 1 —— 使用者同时看到「全部完成」与非 0 退出码，无法判断这次到底成不成功。
+  # 故改为中性措辞；「全部阶段完成」只在 DoD 通过后打印。
+  echo " 📦 阶段产物已生成（5/5 阶段均已执行）——交付物清单"
+  echo "    ⚠ 结论完整性待下方「阶段0 DoD」校验：主观维度未裁定则**不得**视为评测完成"
   echo ""
   echo " 【最终交付物】"
   echo "   • 质量评测报告：$QUALITY_REPORT"
@@ -614,6 +655,8 @@ run_stage4() {
         --data "$QUALITY_RESULTS_DIR/report_data.json" \
         --template "$SKILL_DIR/assets/report.template.md"; then
       echo "   ✅ 主观维度已裁定，DoD 通过"
+      echo ""
+      echo " ✅ 全部阶段完成（进度 5/5，阶段 0 DoD 通过）——评测结论完整"
     else
       echo "" >&2
       echo "⛔ [阶段0 DoD 未满足] 存在未裁定的主观槽位 —— 阶段 0 未完成。" >&2

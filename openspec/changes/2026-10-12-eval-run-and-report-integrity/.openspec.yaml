@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-10-12
+
+# 本变更为**纯实现 / 呈现与运行一致性**修复（阶段完成文案自洽、未裁定候选文本标记、
+# run-id 编号规则），不修改 specs 目录下的能力规约，故显式声明跳过 delta 校验。
+skip_specs: true
