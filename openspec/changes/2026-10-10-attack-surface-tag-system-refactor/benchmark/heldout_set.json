@@ -59,5 +59,85 @@
       "has_scripts": true,
       "primary": "sys"
     }
-  ]
+  ],
+  "round2_added": {
+    "purpose": "第三轮无偏验收样本：从未参与任何口径讨论（前 5 个已因 v4 修订而失去无偏性）",
+    "locked_at": "2026-10-12",
+    "sampling_rule": "分层 + 组内等距：按 has_scripts 分两组，组内按名称排序后各等距取 5 个（确定性、无人工挑选）。**为什么不用纯等距**：首轮纯等距得 9/10 无 scripts，样本偏斜会导致 kappa 虚高（双方都标 no）",
+    "candidates": 272,
+    "with_scripts_pool": 112,
+    "without_scripts_pool": 160,
+    "skills": [
+      {
+        "name": "12306-train-assistant",
+        "path": "/Users/family/.codebuddy/skills-marketplace/skills/12306-train-assistant",
+        "lang": "zh",
+        "has_scripts": false,
+        "primary": "data"
+      },
+      {
+        "name": "academic-translation",
+        "path": "/Users/family/.codebuddy/skills-marketplace/skills/academic-translation",
+        "lang": "zh",
+        "has_scripts": true,
+        "primary": "other"
+      },
+      {
+        "name": "conversion-ops",
+        "path": "/Users/family/.codebuddy/skills-marketplace/skills/conversion-ops",
+        "lang": "en",
+        "has_scripts": false,
+        "primary": "other"
+      },
+      {
+        "name": "excalidraw-diagram",
+        "path": "/Users/family/.codebuddy/skills-marketplace/skills/excalidraw-diagram",
+        "lang": "zh",
+        "has_scripts": true,
+        "primary": "other"
+      },
+      {
+        "name": "imsg",
+        "path": "/Users/family/.codebuddy/skills-marketplace/skills/imsg",
+        "lang": "en",
+        "has_scripts": false,
+        "primary": "other"
+      },
+      {
+        "name": "migraq",
+        "path": "/Users/family/.codebuddy/skills-marketplace/skills/migraq",
+        "lang": "zh",
+        "has_scripts": true,
+        "primary": "sys"
+      },
+      {
+        "name": "product-showcase-site",
+        "path": "/Users/family/.codebuddy/skills-marketplace/skills/product-showcase-site",
+        "lang": "en",
+        "has_scripts": false,
+        "primary": "web"
+      },
+      {
+        "name": "promo-creator-skills",
+        "path": "/Users/family/.codebuddy/skills-marketplace/skills/promo-creator-skills",
+        "lang": "zh",
+        "has_scripts": true,
+        "primary": "gen"
+      },
+      {
+        "name": "tencent-survey",
+        "path": "/Users/family/.codebuddy/skills-marketplace/skills/tencent-survey",
+        "lang": "zh",
+        "has_scripts": false,
+        "primary": "other"
+      },
+      {
+        "name": "tencentcloud-ocr",
+        "path": "/Users/family/.codebuddy/skills-marketplace/skills/tencentcloud-ocr",
+        "lang": "zh",
+        "has_scripts": true,
+        "primary": "doc"
+      }
+    ]
+  }
 }

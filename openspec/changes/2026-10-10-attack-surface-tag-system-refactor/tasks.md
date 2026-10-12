@@ -34,6 +34,12 @@
       - **标签分级（留出集实测）**：客观型 `exec_code` / `external_dep` / `net_egress` / `agent_comms` / `system_instruction` 均 **1.0（可用于度量）**；语义型 `user_content` 0.286、`fs_access` / `prompt_intent` / `tool_calls` 0.0、`state_persist` −0.154、`cred_access` −0.25（**暂不可用于度量**）
       - 已发 **v4 裁定 16–21**（含采纳 B 面三条建议：执行主体 / 回读路径 / 只看表面形态；并撤销 v3 对 `tool_calls` 的收窄，重叠问题转标签集重构处置）
 
+- [x] **#1-f（已锁定样本）** 第三轮：扩大留出集并按 v4 重验
+      - **无偏样本已锁定 10 个**（`heldout_set.json` → `round2_added`）：`12306-train-assistant`、`academic-translation`、`conversion-ops`、`excalidraw-diagram`、`imsg`、`migraq`、`product-showcase-site`、`promo-creator-skills`、`tencent-survey`、`tencentcloud-ocr`；**scripts 5 / 无 scripts 5**
+      - 取样方法是**分层 + 组内等距**：首轮用纯等距得 9/10 无 `scripts/`，样本偏斜会让 kappa **虚高**（双方都标 no），故改为先按 `has_scripts` 分两组再组内等距
+      - A 面已按 v4 标注完毕；**验收对象 = 这 10 个的 kappa ≥ 0.8**（110 判定对）。前 5 个留出集已因 v4 修订失去无偏性，只作过程指标
+      - 收敛约定：**本轮之后不再修订规程**；若仍未达 0.8，则永久接受标签分级承认，语义型标签的判别力问题转交标签集重构处置
+
 - [ ] **#1-f** 第三轮：扩大留出集并按 v4 重验
       - 锚点：`benchmark/heldout_set.json`（扩至 **≥ 10 个技能**）；`annotation_guide.md` v4
       - 验收：留出集 **≥ 10 个技能（≥110 判定对）**，A/B 按 v4 各自独立标注，**kappa ≥ 0.8 才合并最终 `truth.json`**

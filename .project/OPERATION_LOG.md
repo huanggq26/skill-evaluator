@@ -53,3 +53,4 @@
 - `2026-10-12 07:58:54` | `/Users/family/.codebuddy/skills/skill-evaluator/openspec/changes/2026-10-10-attack-surface-tag-system-refactor/benchmark/annotation_guide.md` | set(1 处) | ✅ 非空行 98 → 111，体积 5593 → 6834；备份 annotation_guide-pre-set-20261012-075854.md
 - `2026-10-12 08:23:59` | `/Users/family/.codebuddy/skills/skill-evaluator/openspec/changes/2026-10-10-attack-surface-tag-system-refactor/benchmark/annotation_guide.md` | set(1 处) | ✅ 非空行 111 → 132，体积 6834 → 8529；备份 annotation_guide-pre-set-20261012-082359.md
 - `2026-10-12 08:23:59` | `/Users/family/.codebuddy/skills/skill-evaluator/openspec/changes/2026-10-10-attack-surface-tag-system-refactor/tasks.md` | set(1 处) | ✅ 非空行 63 → 73，体积 6245 → 7179；备份 tasks-pre-set-20261012-082359.md
+- `2026-10-12 08:31:01` | `openspec/changes/2026-10-10-attack-surface-tag-system-refactor/tasks.md` | set(1 处) | ✅ 非空行 73 → 78，体积 7179 → 7766；备份 tasks-pre-set-20261012-083101.md
